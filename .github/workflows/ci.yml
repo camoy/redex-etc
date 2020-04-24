@@ -11,5 +11,5 @@ jobs:
           distribution: 'full'
           variant: 'regular'
           version: 'current'
-      - run: raco pkg install
+      - run: raco pkg install --deps search-auto
       - run: raco test --drdr .
