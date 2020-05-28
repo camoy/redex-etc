@@ -3,18 +3,70 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; provide
 
-(provide substitute-env
-         substitute*
-         lookup
-         ext
-         unique
-         rem)
+(require racket/contract
+         racket/math)
+(provide
+ (contract-out
+  [current-max-steps (parameter/c natural?)]
+  [make-eval (->* (reduction-relation?)
+                  (#:inject (-> any/c any)
+                   #:project (-> any/c any)
+                   #:program? predicate/c
+                   #:answer? predicate/c)
+                  (-> any/c any))])
+  match-term
+  substitute-env
+  substitute*
+  lookup
+  ext
+  unique
+  rem)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
 (require (for-syntax racket/base)
-         redex/reduction-semantics)
+         racket/function
+         racket/match
+         redex/reduction-semantics
+         syntax/parse/define)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; make-eval
+
+(define current-max-steps (make-parameter 50))
+
+(define ((make-eval rr
+                    #:inject [inject values]
+                    #:project [project values]
+                    #:program? [program? (const #t)]
+                    #:answer? [answer? (const #t)])
+         e)
+  (unless (program? e)
+    (error 'make-eval "input is not a program"))
+  (define gas (current-max-steps))
+  (define results
+    (apply-reduction-relation*
+     rr (inject e)
+     #:stop-when
+     (λ _
+       (set! gas (sub1 gas))
+       (< gas 0))))
+  (when (< gas 0)
+    (error 'make-eval "exceeded maximum number of steps"))
+  (match results
+    [(list s)
+     (define result (project s))
+     (unless (answer? result)
+       (error 'make-eval "output is not an answer: ~a" result))
+     result]
+    [_ (error 'make-eval "non-deterministic reduction relation")]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; match-term
+
+(define-simple-macro (match-term L:id e0:expr [pat e:expr] ...)
+  ((term-match/single L [pat e] ...) e0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; metafunctions
@@ -36,7 +88,7 @@
 (define-metafunction REDEX
   substitute-env : any ([any any] ...) -> any
   [(substitute-env any ()) any]
-  [(substitute-env any ([any_0 any_1] any_2 ...))
+  [(substitute-env any (any_2 ... [any_0 any_1]))
    (substitute (substitute-env any (any_2 ...)) any_0 any_1)])
 
 (define-metafunction REDEX
@@ -58,7 +110,7 @@
 (define-metafunction REDEX
   ext : ([any any] ...) [any any] ... -> ([any any] ...)
   [(ext any) any]
-  [(ext any any_0 any_1 ...)
+  [(ext any any_1 ... any_0)
    (ext1 (ext any any_1 ...) any_0)])
 
 (define-relation REDEX
@@ -99,6 +151,7 @@
    (term (substitute-env x ([x 1] [y 2]))) (term 1)
    (term (substitute-env (x y) ([x 1] [y 2]))) (term (1 2))
    (term (substitute* (x y) [x 1] [y 2])) (term (1 2))
+   (term (substitute* x [x (x y)] [x 1] [y 2])) (term (1 2))
 
    (term (lookup ([x 1]) x)) (term 1)
    (term (lookup ([x 1] [y 2]) y)) (term 2)
@@ -106,6 +159,7 @@
    (term (lookup (ext () [x 1]) x)) (term 1)
    (term (lookup (ext () [x 1] [y 2]) x)) (term 1)
    (term (lookup (ext () [x 1] [y 2]) y)) (term 2)
+   (term (lookup (ext () [x 1] [x 2]) x)) (term 2)
 
    (term (unique (1 2 3))) #t
    (term (unique (1 2 2))) #f
