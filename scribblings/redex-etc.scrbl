@@ -17,50 +17,25 @@
 @defmodule[redex-etc]
 
 This package implements miscellaneous
-functions, macros, and metafunctions
+metafunctions, macros, and functions
 for Redex.
 For the purposes of illustration,
 we will use the following language
 in our examples.
 
-@(examples #:eval evaluator #:label #f #:no-result
+@examples[#:eval evaluator #:label #f #:no-result
   (define-language Λ
     [e ::= x v (e e ...)]
     [v ::= (λ (x ...) e)]
     [x ::= variable-not-otherwise-mentioned]
+    [E ::= hole (v ... E e ...)]
 
     #:binding-forms
     (λ (x ...) e #:refers-to (shadow x ...)))
 
-  (default-language Λ))
+  (default-language Λ)]
 
-@defproc[(make-eval [rr reduction-relation?]
-                    [#:inject inject (-> any/c any) values]
-                    [#:project project (-> any/c any) values]
-                    [#:program? program? predicate/c (const #t)]
-                    [#:answer? answer? predicate/c (const #t)])
-         (-> any/c any)]{
-  Returns an evaluation function that applies the given reduction relation
-  until reaching a normal form. The evaluation function will use
-  @racket[inject] into an initial configuration
-  and @racket[project] out of the final configuration.
-  Initial and final expressions will be checked against @racket[program?]
-  and @racket[answer?] respectively.
-  The evaluation function takes a maximum of @racket[current-max-steps] steps
-  before aborting.
-  Additionally it will throw an error
-  on a non-deterministic result.
-}
-
-@defparam[current-max-steps max-steps natural? #:value 50]{
-  A parameter that determines the maximum number of steps evaluation
-  function created by @racket[make-eval] will take.
-}
-
-@defform[(match-term lang expression [pattern expression] ...)]{
-  Matches the given term against a series of patterns,
-  choosing the expression corresponding to the first matching pattern.
-}
+@section{Metafunctions}
 
 @defform[#:kind "metafunction"
          (substitute-env target ([key value] ...))]{
@@ -109,4 +84,52 @@ in our examples.
   in the environment. Does nothing otherwise.
   @examples[#:eval evaluator
     (term (rem ([x 1] [y 2]) x z))]
+}
+
+@section{Macros}
+
+@defform[(match-term lang expression [pattern expression] ...)]{
+  Matches the given term against a series of patterns,
+  choosing the expression corresponding to the first matching pattern.
+  @examples[#:eval evaluator
+    (match-term Λ (term (λ (x) (x x)))
+      [(λ _ e) (term e)])]
+}
+
+@section{Functions}
+
+@defproc[(make-eval [rr reduction-relation?]
+                    [#:inject inject (-> any/c any) values]
+                    [#:project project (-> any/c any) values]
+                    [#:program? program? predicate/c (const #t)]
+                    [#:answer? answer? predicate/c (const #t)])
+         (-> any/c any)]{
+  Returns an evaluation function that applies the given reduction relation
+  until reaching a normal form. The evaluation function will
+  @racket[inject] into an initial machine configuration
+  and @racket[project] out of the final configuration.
+  Initial and final expressions will be checked against @racket[program?]
+  and @racket[answer?] respectively.
+  The evaluation function takes a maximum of @racket[current-max-steps] steps
+  before aborting.
+  Additionally it will throw an error
+  on a non-deterministic or non-terminating result.
+
+  @examples[#:eval evaluator
+    (define v
+      (reduction-relation Λ
+        [--> (in-hole E ((λ (x ..._a) e) v ..._a))
+             (in-hole E (substitute* e [x v] ...))
+             βv]))
+    (define ⇓ (make-eval v))
+    (⇓ (term ((λ (x) x) (λ (y) y))))]
+}
+
+@defparam[current-max-steps max-steps natural? #:value 50]{
+  A parameter that determines the maximum number of steps the evaluation
+  function created by @racket[make-eval] will take before quitting.
+
+  @(evaluator '(current-max-steps 5))
+  @examples[#:eval evaluator
+    (eval:error (⇓ (term ((λ (x) ((x x) x)) (λ (y) ((y y) y))))))]
 }

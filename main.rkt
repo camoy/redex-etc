@@ -60,7 +60,8 @@
      (unless (answer? result)
        (error 'make-eval "output is not an answer: ~a" result))
      result]
-    [_ (error 'make-eval "non-deterministic reduction relation")]))
+    [_ (error 'make-eval
+              "non-deterministic or non-terminating reduction relation")]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; match-term
