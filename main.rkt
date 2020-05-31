@@ -141,11 +141,28 @@
     [e ::= x v (e e ...)]
     [v ::= (λ (x ...) e)]
     [x ::= variable-not-otherwise-mentioned]
+    [E ::= hole (v ... E e ...)]
 
     #:binding-forms
     (λ (x ...) e #:refers-to (shadow x ...)))
 
   (default-language Λ)
+
+  (define v
+    (reduction-relation
+     Λ
+     [--> (in-hole E ((λ (x ..._a) e) v ..._a))
+          (in-hole E (substitute* e [x v] ...))
+          βv]))
+
+  (define (program? prog)
+    (redex-match? Λ e prog))
+
+  (define (answer? res)
+    (redex-match? Λ v res))
+
+  (define ⇓ (make-eval v #:program? program? #:answer? answer?))
+
   (chk
    (term (substitute-env x ())) (term x)
    (term (substitute-env x ([x 1]))) (term 1)
@@ -166,4 +183,31 @@
    (term (unique (1 2 2))) #f
 
    (term (rem ([x 1] [y 2] [z 3] [w 4]) x z)) (term ([y 2] [w 4]))
+
+   #:t
+   (match-term
+    Λ (term (λ (x) x))
+    [(λ (_ _) e) #f]
+    [(λ (x) e) (equal? (term x) (term e))])
+
+   #:eq alpha-equivalent?
+   (⇓ (term ((λ (f x y) (f x y)) (λ (x y) y) (λ (x) (x x)) (λ (x) x))))
+   (term (λ (x) x))
+
+   #:x
+   (⇓ (term ((λ (x) (x x)) (λ (x) (x x)))))
+   "non-terminating"
+
+   #:x
+   (parameterize ([current-max-steps 2])
+     (⇓ (term ((λ (f x y) (f x y)) (λ (x y) y) (λ (x) (x x)) (λ (x) x)))))
+   "exceeded"
+
+   #:x
+   (⇓ (term ((λ (x) y) (λ (x) x))))
+   "output is not"
+
+   #:x
+   (⇓ (term 5))
+   "input is not"
    ))
