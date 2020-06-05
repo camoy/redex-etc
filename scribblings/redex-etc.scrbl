@@ -133,3 +133,11 @@ in our examples.
   @examples[#:eval evaluator
     (eval:error (⇓ (term ((λ (x) ((x x) x)) (λ (y) ((y y) y))))))]
 }
+
+@defproc[(genloc [x symbol?])
+         symbol?]{
+  Generates a fresh location, a variable prefixed with ℓ, based on the given
+  variable name.
+
+  @examples[#:eval evaluator (genloc 'x)]
+}

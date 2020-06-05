@@ -13,7 +13,8 @@
                    #:project (-> any/c any)
                    #:program? predicate/c
                    #:answer? predicate/c)
-                  (-> any/c any))])
+                  (-> any/c any))]
+  [genloc (-> symbol? symbol?)])
   match-term
   substitute-env
   substitute*
@@ -62,6 +63,11 @@
      result]
     [_ (error 'make-eval
               "non-deterministic or non-terminating reduction relation")]))
+
+;; Symbol → Symbol
+;; Generates a "location," a fresh variable prefixed with ℓ.
+(define (genloc x)
+  (gensym (format "ℓ~a" x)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; match-term
@@ -135,7 +141,8 @@
 ;; tests
 
 (module+ test
-  (require chk)
+  (require chk
+           racket/string)
 
   (define-language Λ
     [e ::= x v (e e ...)]
@@ -210,4 +217,6 @@
    #:x
    (⇓ (term 5))
    "input is not"
+
+   #:t (string-prefix? (symbol->string (genloc "x")) "ℓx")
    ))
