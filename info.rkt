@@ -6,6 +6,7 @@
 (define pkg-authors '(camoy))
 (define deps '("base"
                "redex-lib"))
-(define build-deps '("chk-lib"
+(define build-deps '("redex-doc"
+                     "chk-lib"
                      "racket-doc"
                      "scribble-lib"))
