@@ -2,6 +2,8 @@
 
 @require[@for-label[redex-etc
                     racket/base
+                    racket/math
+                    racket/contract
                     racket/function
                     redex/reduction-semantics]
          scribble/example]
