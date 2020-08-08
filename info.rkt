@@ -1,12 +1,21 @@
 #lang info
+
+;; General
+
 (define collection "redex-etc")
-(define scribblings '(("scribblings/redex-etc.scrbl" ())))
-(define pkg-desc "Description Here")
+(define pkg-desc "Miscellaneous functions, macros, and metafunctions for Redex.")
 (define version "0.0")
 (define pkg-authors '(camoy))
-(define deps '("base"
-               "redex-lib"))
-(define build-deps '("redex-doc"
-                     "chk-lib"
-                     "racket-doc"
-                     "scribble-lib"))
+(define scribblings '(("scribblings/redex-etc.scrbl" ())))
+
+;; Dependencies
+
+(define deps
+  '("base"
+    "redex-lib"))
+
+(define build-deps
+  '("redex-doc"
+    "chk-lib"
+    "racket-doc"
+    "scribble-lib"))

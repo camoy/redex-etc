@@ -18,6 +18,11 @@
 
 @defmodule[redex-etc]
 
+@margin-note{
+This library is under development;
+compatibility will not be maintained.
+}
+
 This package implements miscellaneous
 metafunctions, macros, and functions
 for Redex.
@@ -134,12 +139,4 @@ in our examples.
   @(evaluator '(current-max-steps 5))
   @examples[#:eval evaluator
     (eval:error (⇓ (term ((λ (x) ((x x) x)) (λ (y) ((y y) y))))))]
-}
-
-@defproc[(genloc [x symbol?])
-         symbol?]{
-  Generates a fresh location, a variable prefixed with ℓ, based on the given
-  variable name.
-
-  @examples[#:eval evaluator (genloc 'x)]
 }
