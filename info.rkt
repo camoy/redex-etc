@@ -7,11 +7,14 @@
 (define version "0.0")
 (define pkg-authors '(camoy))
 (define scribblings '(("scribblings/redex-etc.scrbl" ())))
+(define compile-omit-paths '("test"))
 
 ;; Dependencies
 
 (define deps
-  '("base"
+  '("redex-pict-lib"
+    "unstable-redex"
+    "base"
     "redex-lib"))
 
 (define build-deps
