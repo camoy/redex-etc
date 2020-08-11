@@ -15,7 +15,7 @@
                    #:program? predicate/c
                    #:answer? predicate/c)
                   (-> any/c any))]
-  [set-cons (-> generic-set? any/c generic-set?)]))
+  [set-cons (-> any/c generic-set? generic-set?)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
