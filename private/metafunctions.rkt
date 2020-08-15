@@ -13,25 +13,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
+(require private-in)
 (require (for-syntax racket/base)
+         ;; The `metafunction-leave-default-language-alone` is an internal
+         ;; language used to define metafunctions that work across all
+         ;; languages.
+         (only-in (private-in redex/private/reduction-semantics)
+                  [metafunction-leave-default-language-alone LANG])
          redex/reduction-semantics)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; metafunctions
-
-;; The `metafunction-leave-default-language-alone` is an internal language used
-;; to define metafunctions that work across all languages. This is used by the
-;; substitute metafunction for example. We'll use this language for the same
-;; purpose. This is a hack that let's us get at that binding.
-(define-syntax LANG
-  (make-rename-transformer
-   (syntax-binding-set->syntax
-    (syntax-binding-set-extend
-     (syntax-binding-set)
-     'metafunction-leave-default-language-alone
-     0
-     (module-path-index-join 'redex/private/reduction-semantics #f))
-    'metafunction-leave-default-language-alone)))
 
 (define-metafunction LANG
   substitute-env : any ([any any] ...) -> any

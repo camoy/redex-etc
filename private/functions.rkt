@@ -14,8 +14,7 @@
                    #:project (-> any/c any)
                    #:program? predicate/c
                    #:answer? predicate/c)
-                  (-> any/c any))]
-  [set-cons (-> any/c generic-set? generic-set?)]))
+                  (-> any/c any))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -59,12 +58,6 @@
      result]
     [_ (error 'make-eval
               "non-deterministic or non-terminating reduction relation")]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; definitions
-
-(define (set-cons x st)
-  (set-add st x))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; test

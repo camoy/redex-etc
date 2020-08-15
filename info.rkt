@@ -15,7 +15,8 @@
   '("redex-pict-lib"
     "unstable-redex"
     "base"
-    "redex-lib"))
+    "redex-lib"
+    "private-in"))
 
 (define build-deps
   '("redex-doc"

@@ -3,7 +3,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; provide
 
-(provide)
+(provide define-language/style
+         render-language/style)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -21,14 +22,14 @@
                   flatten-grammar-info
                   nts->str
                   sequence-of-non-terminals
-                  make-bar
-                  make-::=
+                  add-bars-and-::=
                   basic-text)
          (for-syntax racket/base
                      racket/match
                      racket/struct-info
                      racket/syntax
                      syntax/parse)
+         "typography.rkt"
          racket/class
          racket/draw
          racket/match
@@ -41,44 +42,29 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; `define-language/style`
 
-(struct stylish-compiled-lang compiled-lang (sets))
+(define language-set-hash (make-hash))
 
 (begin-for-syntax
   (define-splicing-syntax-class clause
     #:datum-literals (∈ ::=)
-    (pattern [nt:id ... ∈ s:id ::= rhs ...]
-             #:with set-only #'#f)
-    (pattern (~seq #:set-only [nt:id ... ∈ s:id ::= rhs ...])
-             #:with set-only #'#t)))
+    (pattern [nt:id ... ∈ s:id ::= rhs:expr ...]
+             #:with def #'#f)
+    (pattern [nt:id ... ∈ s:id ::= rhs:expr ... #:define]
+             #:with def #'"")
+    (pattern [nt:id ... ∈ s:id ::= rhs:expr ... #:define def:string])))
 
 (define-syntax (define-language/style stx)
   (syntax-parse stx
     [(_ ?name:id ?c:clause ... (~optional (~seq #:binding-forms ?b ...)))
-     #:with ?name* (generate-temporary #'?name)
      #'(begin
-         (define-language ?name*
+         (define-language ?name
            [?c.nt ... ::= ?c.rhs ...] ...
            (~? (~@ #:binding-forms ?b ...)))
-         (define ?name
-           (apply stylish-compiled-lang
-                  (append (struct->list/opaque compiled-lang ?name*)
-                          (list (hash (~@ '(?c.nt ...)
-                                          (cons '?c.s ?c.set-only))
-                                          ...))))))]))
-
-(define-syntax (struct->list/opaque stx)
-  (syntax-parse stx
-    [(_ ?s:id ?e:expr)
-     (define si (syntax-local-value #'?s (λ _ #f)))
-     (unless si
-       (raise-syntax-error 'struct->list/opaque
-                           "not bound to a struct identifier"
-                           #'?s))
-     (match-define (list desc mk pred accs muts sup)
-       (extract-struct-info si))
-     (define accs* (reverse accs))
-     #`(let ([v ?e])
-         (map (λ (f) (f v)) (list #,@accs*)))]))
+         (hash-set!
+          language-set-hash
+          ?name
+          (hash (~@ '(?c.nt ...)
+                    (cons '?c.s ?c.def)) ...)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; `render-language/style`
@@ -86,12 +72,13 @@
 (define (render-language/style lang
                                [filename #f]
                                #:nts [nts (render-language-nts)])
-  (if filename
-      (save-as-ps/pdf
-       (λ () (do-language->pict 'render-language lang nts)) filename)
-      (parameterize ([dc-for-text-size
-                      (make-object bitmap-dc% (make-object bitmap% 1 1))])
-        (do-language->pict 'render-language lang nts))))
+  (with-style
+    (if filename
+        (save-as-ps/pdf
+         (λ () (do-language->pict 'render-language lang nts)) filename)
+        (parameterize ([dc-for-text-size
+                        (make-object bitmap-dc% (make-object bitmap% 1 1))])
+          (do-language->pict 'render-language lang nts)))))
 
 (define (language->pict lang #:nts [nts (render-language-nts)])
   (do-language->pict 'language->pict lang nts))
@@ -107,7 +94,7 @@
                      pict-info
                      (or specd-non-terminals all-non-terminals)
                      all-non-terminals
-                     (stylish-compiled-lang-sets lang)))
+                     (hash-ref language-set-hash lang)))
 
 (define (make-grammar-pict what raw-info nts all-nts sets)
   (define info
@@ -132,82 +119,21 @@
             (non-terminal-gap-space)
             (for/list ([line (in-list info)])
               (define nt (car line))
-              (match-define (cons nt-set set-only?) (hash-ref sets nt))
+              (match-define (cons nt-set def) (hash-ref sets nt))
               ((adjust 'language-production)
                (htl-append
                 (rc-superimpose term-space (lhs (car line) nt-set))
-                (if set-only?
-                    (blank)
-                    (lw->pict
-                     all-nts
-                     (find-enclosing-loc-wrapper (add-bars-and-::= (cdr line)))
-                     (adjust 'language-line)))))))]))
+                (cond
+                  [(equal? def "") (blank)]
+                  [def (basic-text (format "  =  ~a" def) (grammar-style))]
+                  [else
+                   (lw->pict
+                    all-nts
+                    (find-enclosing-loc-wrapper (add-bars-and-::= (cdr line)))
+                    (adjust 'language-line))])))))]))
 
 (define (lhs nt nt-set)
   (htl-append
    (sequence-of-non-terminals nt)
    (basic-text (string-append " ∈ " (symbol->string nt-set))
                (grammar-style))))
-
-(define (add-bars-and-::= lst)
-  (cond
-    [(null? lst) null]
-    [else
-     (cons
-      (let ([fst (car lst)])
-        (build-lw
-         (rc-superimpose (ghost (make-bar)) (make-::=))
-         (lw-line fst)
-         (lw-line-span fst)
-         (lw-column fst)
-         0))
-      (let loop ([fst (car lst)]
-                 [rst (cdr lst)])
-        (cond
-          [(null? rst) (list fst)]
-          [else
-           (let* ([snd (car rst)]
-                  [bar
-                   (cond
-                     [(= (lw-line snd)
-                         (lw-line fst))
-                      (let* ([line (lw-line snd)]
-                             [line-span (lw-line-span snd)]
-                             [column (+ (lw-column fst)
-                                        (lw-column-span fst))]
-                             [column-span
-                              (max (- (lw-column snd)
-                                      (+ (lw-column fst)
-                                         (lw-column-span fst)))
-                                   0)])
-                        (build-lw (make-bar) line line-span column column-span))]
-                     [else
-                      (build-lw
-                       (rc-superimpose (make-bar) (ghost (make-::=)))
-                       (lw-line snd)
-                       (lw-line-span snd)
-                       (lw-column snd)
-                       0)])])
-             (list* fst
-                    bar
-                    (loop snd (cdr rst))))])))]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; test
-
-(module+ test
-  (require chk)
-
-  (define-language/style Λ
-    [e ∈ Expr ::= x v (e e ...)]
-    [v ∈ Val ::= (λ (x ...) e)]
-    #:set-only [x ∈ Var ::= variable-not-otherwise-mentioned]
-    [E ∈ Ctx ::= hole (v ... E e ...)]
-
-    #:binding-forms
-    (λ (x ...) e #:refers-to (shadow x ...)))
-
-  (render-language/style Λ)
-
-  #;(chk
-   ))
