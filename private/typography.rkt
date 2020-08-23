@@ -8,6 +8,7 @@
 
          render-metafunction/style
          render-metafunctions/style
+         render-judgment-form/style
          render-reduction-relation/style
 
          default-atomic-rewriters
@@ -16,7 +17,11 @@
 
          substitute-rw
          lookup-rw
-         macro-rw
+         typing-rw
+         sf-rw
+         sans-rw
+         mono-rw
+         set-add-rw
          unquote-rw
 
          current-arrow-hash
@@ -28,7 +33,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require (except-in unstable/gui/redex set-cons-rw)
+(require unstable/gui/redex
          "rule-style.rkt"
          racket/class
          racket/draw
@@ -60,12 +65,12 @@
          [grammar-style sans-serif-font]
          [paren-style mono-font]
          [literal-style mono-font]
-         [metafunction-style sans-serif-font]
-         [non-terminal-style (cons 'italic serif-font)]
+         [metafunction-style serif-font]
+         [non-terminal-style serif-font]
          [non-terminal-subscript-style
-          (list* 'italic 'subscript serif-font)]
+          (list* 'subscript serif-font)]
          [non-terminal-superscript-style
-          (list* 'italic 'superscript serif-font)]
+          (list* 'superscript serif-font)]
          [default-style serif-font]
          [label-font-size size]
          [metafunction-font-size size]
@@ -101,6 +106,10 @@
 (define-syntax-rule (render-metafunctions/style args ...)
   (with-style
     (render-metafunctions args ...)))
+
+(define-syntax-rule (render-judgment-form/style args ...)
+  (with-style
+    (render-judgment-form args ...)))
 
 (define (render-reduction-relation/style . args)
   (with-style
@@ -146,20 +155,37 @@
   (match-define (list L _ f x R) lws)
   (list "" f "(" x ")"))
 
-(define ((macro-rw name) lws)
+(define (lookup*-rw lws)
+  (match-define (list L _ f x y R) lws)
+  (list "" f "(" x ") = " y))
+
+(define ((typing-rw turnstile) lws)
+  (match-define (list L ⊢ Γ e colon τ R) lws)
+  (list Γ turnstile e colon τ))
+
+(define ((set-add-rw union) lws)
+  (match-define (list L _ xs x R) lws)
+  (list "" xs union "{" x "}"))
+
+(define ((sf-rw name) lws)
   (match-define (list L _ e ...) lws)
-  (list* L (text name (current-mono-font)) " " e))
+  (list* L (text name (current-serif-font) (current-font-size)) " " e))
+
+(define ((sans-rw name) lws)
+  (match-define (list L _ e ...) lws)
+  (list* L (text name (current-sans-serif-font) (current-font-size)) " " e))
+
+(define ((mono-rw name) lws)
+  (match-define (list L _ e ...) lws)
+  (list* L (text name (current-mono-font) (current-font-size)) " " e))
 
 (define default-compound-rewriters
   (make-parameter
-   (list '~ (bracket-rw '("⟨" "⟩"))
-         '⌢ (binary-rw " ⌢ ")
-         'substitute (substitute-rw " → ")
+   (list 'substitute (substitute-rw " → ")
          'substitute* (substitute*-rw " → ")
          'ext (substitute*-rw " ↦ ")
          'lookup lookup-rw
-         'mon* (macro-rw "mon")
-         'let (macro-rw "let"))))
+         'lookup* lookup*-rw)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; unquote rewriters

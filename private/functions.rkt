@@ -64,7 +64,7 @@
 
 (module+ test
   (require "../test/common.rkt"
-           "metafunctions.rkt"
+           "metas.rkt"
            chk)
 
   (default-language Λ)

@@ -11,17 +11,20 @@
  ;; `macros.rkt`
  match-term
 
- ;; `metafunctions.rkt`
+ ;; `metas.rkt`
  substitute-env
  substitute*
  lookup
+ lookup*
  ext
  unique
  rem
 
  ;; `language.rkt`
  define-language/style
+ define-extended-language/style
  render-language/style
+ nt-set
 
  ;; `rule-style.rkt`
  current-rule-label?
@@ -30,11 +33,16 @@
  ;; `typography.rkt`
  render-metafunction/style
  render-metafunctions/style
+ render-judgment-form/style
  render-reduction-relation/style
 
  substitute-rw
  lookup-rw
- macro-rw
+ typing-rw
+ sf-rw
+ sans-rw
+ mono-rw
+ set-add-rw
  unquote-rw
 
  default-atomic-rewriters
@@ -52,7 +60,7 @@
 
 (require "private/functions.rkt"
          "private/macros.rkt"
-         "private/metafunctions.rkt"
+         "private/metas.rkt"
          "private/language.rkt"
          "private/rule-style.rkt"
          "private/typography.rkt")

@@ -4,7 +4,9 @@
 ;; provide
 
 (provide define-language/style
-         render-language/style)
+         define-extended-language/style
+         render-language/style
+         nt-set)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -51,13 +53,27 @@
              #:with def #'#f)
     (pattern [nt:id ... ∈ s:id ::= rhs:expr ... #:define]
              #:with def #'"")
-    (pattern [nt:id ... ∈ s:id ::= rhs:expr ... #:define def:string])))
+    (pattern [nt:id ... ∈ s:id ::= rhs:expr ... #:define def:expr])))
 
 (define-syntax (define-language/style stx)
   (syntax-parse stx
     [(_ ?name:id ?c:clause ... (~optional (~seq #:binding-forms ?b ...)))
      #'(begin
          (define-language ?name
+           [?c.nt ... ::= ?c.rhs ...] ...
+           (~? (~@ #:binding-forms ?b ...)))
+         (hash-set!
+          language-set-hash
+          ?name
+          (hash (~@ '(?c.nt ...)
+                    (cons '?c.s ?c.def)) ...)))]))
+
+;; TODO: DRY
+(define-syntax (define-extended-language/style stx)
+  (syntax-parse stx
+    [(_ ?name:id ?base:id ?c:clause ... (~optional (~seq #:binding-forms ?b ...)))
+     #'(begin
+         (define-extended-language ?name ?base
            [?c.nt ... ::= ?c.rhs ...] ...
            (~? (~@ #:binding-forms ?b ...)))
          (hash-set!
@@ -124,6 +140,9 @@
                (htl-append
                 (rc-superimpose term-space (lhs (car line) nt-set))
                 (cond
+                  [(pict? def)
+                   (hbl-append (basic-text " = " (grammar-style))
+                               def)]
                   [(equal? def "") (blank)]
                   [def (basic-text (format "  =  ~a" def) (grammar-style))]
                   [else
@@ -137,3 +156,9 @@
    (sequence-of-non-terminals nt)
    (basic-text (string-append " ∈ " (symbol->string nt-set))
                (grammar-style))))
+
+(define (nt-set s)
+  (hbl-append
+   (text "{ " (current-sans-serif-font) (current-font-size))
+   (text s (cons 'italic (current-sans-serif-font)) (current-font-size))
+   (text " }" (current-sans-serif-font) (current-font-size))))
