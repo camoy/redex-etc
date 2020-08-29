@@ -140,6 +140,9 @@
                (htl-append
                 (rc-superimpose term-space (lhs (car line) nt-set))
                 (cond
+                  [(nt-set? def)
+                   (hbl-append (basic-text " = " (grammar-style))
+                               (nt-set-render def))]
                   [(pict? def)
                    (hbl-append (basic-text " = " (grammar-style))
                                def)]
@@ -157,8 +160,11 @@
    (basic-text (string-append " ∈ " (symbol->string nt-set))
                (grammar-style))))
 
-(define (nt-set s)
+(struct nt-set (s))
+
+(define (nt-set-render nt)
+  (define s (nt-set-s nt))
   (hbl-append
-   (text "{ " (current-sans-serif-font) (current-font-size))
-   (text s (cons 'italic (current-sans-serif-font)) (current-font-size))
-   (text " }" (current-sans-serif-font) (current-font-size))))
+   (basic-text "{ " (current-sans-serif-font))
+   (basic-text s (cons 'italic (current-sans-serif-font)))
+   (basic-text " }" (current-sans-serif-font))))

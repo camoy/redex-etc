@@ -132,24 +132,31 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; compound rewriters
 
-(define ((substitute-rw arr )lws)
-  (match-define (list L _ e x y R) lws)
-  (list* "" e ((substitute-pair-rw arr) (list L x y R))))
+(define (lw-swap-cols lw1 lw2)
+  (values (struct-copy lw lw1 [column (lw-column lw2)])
+          (struct-copy lw lw2 [column (lw-column lw1)])))
 
-(define ((substitute*-rw arr) lws)
+(define ((substitute-rw arr #:flip? [flip? #f]) lws)
+  (match-define (list L _ e x y R) lws)
+  (list* "" e ((substitute-pair-rw arr flip?) (list L x y R))))
+
+(define ((substitute*-rw arr #:flip? [flip? #f]) lws)
   (match-define (list L _ e x+y ... R) lws)
-  (define pairs (append-map (substitute-pair-...-rw arr) x+y))
+  (define pairs (append-map (substitute*-pair-rw arr flip?) x+y))
   (list* "" e pairs))
 
-(define ((substitute-pair-...-rw arr) lw)
+(define ((substitute*-pair-rw arr flip?) lw)
   (define lws (lw-e lw))
   (if (list? lws)
-      ((substitute-pair-rw arr) lws)
+      ((substitute-pair-rw arr flip?) lws)
       '(" …")))
 
-(define ((substitute-pair-rw arr) lws)
+(define ((substitute-pair-rw arr flip?) lws)
   (match-define (list L x y R) lws)
-  (list "[" x arr y "]"))
+  (if flip?
+      (let-values ([(x* y*) (lw-swap-cols x y)])
+        (list "[" y* arr x* "]"))
+      (list "[" x arr y "]")))
 
 (define (lookup-rw lws)
   (match-define (list L _ f x R) lws)
@@ -181,8 +188,8 @@
 
 (define default-compound-rewriters
   (make-parameter
-   (list 'substitute (substitute-rw " → ")
-         'substitute* (substitute*-rw " → ")
+   (list 'substitute (substitute-rw " / " #:flip? #t)
+         'substitute* (substitute*-rw " / " #:flip? #f)
          'ext (substitute*-rw " ↦ ")
          'lookup lookup-rw
          'lookup* lookup*-rw)))
