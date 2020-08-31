@@ -10,6 +10,7 @@
          render-metafunctions/style
          render-judgment-form/style
          render-reduction-relation/style
+         render-term/style
 
          default-atomic-rewriters
          default-compound-rewriters
@@ -118,6 +119,10 @@
 (define (render-reduction-relation/style . args)
   (with-style
     (apply render-reduction-relation args)))
+
+(define-syntax-rule (render-term/style args ...)
+  (with-style
+    (render-term args ...)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; atomic rewriters

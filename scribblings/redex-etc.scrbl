@@ -15,6 +15,7 @@
 @(define evaluator
   (make-base-eval
     '(require redex/reduction-semantics
+              redex/pict
               redex-etc)))
 
 @title{Redex Miscellanea}
@@ -147,18 +148,48 @@ in our examples.
 
 @section{Typography}
 
+Redex has the ability to typeset your model
+for use directly in a paper.
+Sadly,
+the default typesetting options
+are out of place in
+@hyperlink["http://mirrors.concertpass.com/tex-archive/macros/latex/contrib/acmart/acmart.pdf"]{
+acmart
+}
+papers.
+What follows are a bunch of
+``stylish'' rendering utilities
+that typeset the model
+with my preferences.
+
 @defform[
 (define-language/style lang-name
   non-terminal-def ...
-  maybe-binding-spec)]{
-  TODO
+  maybe-binding-spec)
+#:grammar
+[(non-terminal-def (nt ...+ ∈ nt-set ::= pattern ...+ maybe-rhs))
+ (maybe-rhs (code:line)
+            (code:line #:define)
+            (code:line #:define rhs-expr))]]{
+  Defines a language like @racket[define-language],
+  but also defines non-terminal set names.
+  @examples[#:eval evaluator
+    (define-language/style L
+      [e ∈ Expr ::= x v]
+      [v ∈ Val ::= n]
+      [n ∈ Int ::= integer #:define]
+      [x ∈ Var ::= variable-not-otherwise-mentioned
+                   #:define (nt-set "identifiers")])
+
+    (render-language/style L)]
 }
 
 @defform[
 (define-extended-language/style extended-lang base-lang
   non-terminal-def ...
   maybe-binding-spec)]{
-  TODO
+  Defines a language like @racket[define-extended-language],
+  but can also define non-terminal set names.
 }
 
 @defproc[
@@ -167,7 +198,7 @@ in our examples.
   [file (or/c #f path-string?) #f]
   [#:nts nts (or/c #f (listof (or/c string? symbol?))) (render-language-nts)])
   pict?]{
-  TODO
+  Renders like @racket[render-language], but stylish.
 }
 
 @deftogether[(
@@ -176,12 +207,12 @@ in our examples.
     (render-metafunction/style metafunction-name filename maybe-contract))]
   @defform[(render-metafunctions/style metafunction-name ...
              maybe-filename maybe-contract maybe-only-contract)])]{
-  TODO
+  Renders like @racket[render-metafunction], but stylish.
 }
 
 @defform*[((render-judgment-form/style judgment-form-name)
            (render-judgment-form/style judgment-form-name filename))]{
-  TODO
+  Renders like @racket[render-judgment-form], but stylish.
 }
 
 @defproc[
@@ -190,20 +221,37 @@ in our examples.
     [file	(or/c #f path-string?) #f]
     [#:style style reduction-rule-style/c (rule-pict-style)])
   (if file void? pict-convertible?)]{
-  TODO
+  Renders like @racket[render-reduction-relation], but stylish.
+}
+
+@defform*[((render-term/style lang term)
+           (render-term/style lang term file))]{
+  Renders like @racket[render-term], but stylish.
 }
 
 @defproc[(nt-set [non-terminal-def string?]) nt-set?]{
-  TODO
+  Creates a right-hand-side expression for use
+  in @racket[define-language/style]
+  and @racket[define-extended-language/style].
 }
 
 @defproc[(nt-set? [x any/c]) boolean?]{
-  TODO
+  Predicate that recognizes an @racket[nt-set].
 }
 
-@defparam[current-rule-label? rule-label? boolean? #:value #f]{}
-@defparam[current-compact-threshold compact-threshold natural?]{}
-@defparam[current-arrow-hash arrow-hash (hash/c symbol? string?)]{}
+@defparam[current-rule-label? rule-label? boolean? #:value #t]{
+  Determines reduction relation rules names are rendered
+  with @racket[render-reduction-relation/style].
+}
+
+@defparam[current-compact-threshold compact-threshold natural?]{
+  Determines the width to begin wrapping side conditions
+  when rendering with @racket[render-reduction-relation/style].
+}
+
+@defparam[current-arrow-hash arrow-hash (hash/c symbol? string?)]{
+  Maps symbols to strings for the arrows in a reduction relation.
+}
 
 @deftogether[(
   @defparam[current-serif-font
@@ -222,7 +270,7 @@ in our examples.
             font-size
             natural?
             #:value 22])]{
-  TODO
+  Fonts and font preferences for stylish renderers.
 }
 
 @section{Rewriting}
@@ -234,28 +282,28 @@ in our examples.
   @defproc[(substitute*-rw [op string?]
                            [#:flip? flip? boolean? #f])
            rw/c])]{
-  TODO
+  Rewriter for substitutions.
 }
 
 @deftogether[(
   @defthing[lookup-rw rw/c]
   @defthing[lookup*-rw rw/c])]{
-  TODO
+  Rewriter for lookups.
 }
 
 @defproc[(typing-rw [op string?]) rw/c]{
-  TODO
+  Rewriter for typing.
 }
 
 @defproc[(set-add-rw [op string?]) rw/c]{
-  TODO
+  Rewriter for adding an element to a set.
 }
 
 @deftogether[(
   @defproc[(sf-rw [font-family text-style/c]) rw/c]
   @defproc[(sans-rw [font-family text-style/c]) rw/c]
   @defproc[(mono-rw [font-family text-style/c]) rw/c])]{
-  TODO
+  Rewriters for font families.
 }
 
 @defproc[(unquote-rw [replacement
@@ -264,7 +312,7 @@ in our examples.
                             pict-convertible?
                             (listof (or/c (symbols 'spring) lw?)))])
          (-> lw? lw?)]{
-  TODO
+  Unquoted rewriter.
 }
 
 @defthing[rw/c contract?]{
@@ -272,7 +320,6 @@ in our examples.
   Equivalent to
   @racket[(-> (listof lw?) (listof (or/c lw? string? pict-convertible?)))].
 }
-
 
 @deftogether[(
   @defparam[default-atomic-rewriters
@@ -287,5 +334,5 @@ in our examples.
   @defparam[default-unquote-rewriters
             unquote-rewriters
             (plistof symbol? (-> lw? lw?))])]{
-  TODO
+  The rewriters to use when rendering stylish.
 }

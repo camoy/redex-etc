@@ -58,9 +58,12 @@
 
   (define ((make-define-language/style form) stx)
     (syntax-parse stx
-      [(_ ?before ... ?c:clause ... (~optional (~seq #:binding-forms ?b ...)))
+      [(_ ?name:id
+          (~optional ?ext:id)
+          ?c:clause ...
+          (~optional (~seq #:binding-forms ?b ...)))
        #`(begin
-           (#,form ?before ...
+           (#,form ?name (~? ?ext)
              [?c.nt ... ::= ?c.rhs ...] ...
              (~? (~@ #:binding-forms ?b ...)))
            (hash-set!
