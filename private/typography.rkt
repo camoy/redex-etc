@@ -168,7 +168,7 @@
 
 (define ((typing-rw turnstile) lws)
   (match-define (list L ⊢ Γ e colon τ R) lws)
-  (list Γ turnstile e colon τ))
+  (list "" Γ turnstile e colon τ))
 
 (define ((set-add-rw union) lws)
   (match-define (list L _ xs x R) lws)
