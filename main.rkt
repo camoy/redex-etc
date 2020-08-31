@@ -15,7 +15,6 @@
  substitute-env
  substitute*
  lookup
- lookup*
  ext
  unique
  rem
@@ -25,6 +24,7 @@
  define-extended-language/style
  render-language/style
  nt-set
+ nt-set?
 
  ;; `rule-style.rkt`
  current-rule-label?
@@ -37,13 +37,16 @@
  render-reduction-relation/style
 
  substitute-rw
+ substitute*-rw
  lookup-rw
+ lookup*-rw
  typing-rw
  sf-rw
  sans-rw
  mono-rw
  set-add-rw
  unquote-rw
+ rw/c
 
  default-atomic-rewriters
  default-compound-rewriters
@@ -53,7 +56,8 @@
  current-serif-font
  current-sans-serif-font
  current-mono-font
- current-font-size)
+ current-font-size
+ )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require

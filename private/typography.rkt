@@ -16,13 +16,16 @@
          default-unquote-rewriters
 
          substitute-rw
+         substitute*-rw
          lookup-rw
+         lookup*-rw
          typing-rw
+         set-add-rw
          sf-rw
          sans-rw
          mono-rw
-         set-add-rw
          unquote-rw
+         rw/c
 
          current-arrow-hash
          current-serif-font
@@ -40,7 +43,8 @@
          racket/match
          racket/list
          redex/pict
-         pict)
+         pict
+         pict/convert)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; definitions
@@ -186,10 +190,13 @@
   (match-define (list L _ e ...) lws)
   (list* L (text name (current-mono-font) (current-font-size)) " " e))
 
+(define rw/c
+  (-> (listof lw?) (listof (or/c lw? string? pict-convertible?))))
+
 (define default-compound-rewriters
   (make-parameter
    (list 'substitute (substitute-rw " / " #:flip? #t)
-         'substitute* (substitute*-rw " / " #:flip? #f)
+         'substitute* (substitute*-rw " / " #:flip? #t)
          'ext (substitute*-rw " ↦ ")
          'lookup lookup-rw
          'lookup* lookup*-rw)))

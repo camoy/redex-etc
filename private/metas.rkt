@@ -6,7 +6,6 @@
 (provide substitute-env
          substitute*
          lookup
-         lookup*
          ext
          unique
          rem)
@@ -40,10 +39,6 @@
 (define-metafunction LANG
   lookup : ([any any] ...) any -> any or #f
   [(lookup (_ ... [any any_0] _ ...) any) any_0])
-
-(define-judgment-form LANG
-  #:mode (lookup* I I O)
-  [(lookup* (_ ... [any any_0] _ ...) any any_0)])
 
 (define-metafunction LANG
   ext1 : ([any any] ...) [any any] -> ([any any] ...)
