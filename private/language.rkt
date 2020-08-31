@@ -6,7 +6,8 @@
 (provide define-language/style
          define-extended-language/style
          render-language/style
-         nt-set)
+         nt-set
+         nt-set?)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -53,34 +54,27 @@
              #:with def #'#f)
     (pattern [nt:id ... ∈ s:id ::= rhs:expr ... #:define]
              #:with def #'"")
-    (pattern [nt:id ... ∈ s:id ::= rhs:expr ... #:define def:expr])))
+    (pattern [nt:id ... ∈ s:id ::= rhs:expr ... #:define def:expr]))
 
-(define-syntax (define-language/style stx)
-  (syntax-parse stx
-    [(_ ?name:id ?c:clause ... (~optional (~seq #:binding-forms ?b ...)))
-     #'(begin
-         (define-language ?name
-           [?c.nt ... ::= ?c.rhs ...] ...
-           (~? (~@ #:binding-forms ?b ...)))
-         (hash-set!
-          language-set-hash
-          ?name
-          (hash (~@ '(?c.nt ...)
-                    (cons '?c.s ?c.def)) ...)))]))
+  (define ((make-define-language/style form) stx)
+    (syntax-parse stx
+      [(_ ?before ... ?c:clause ... (~optional (~seq #:binding-forms ?b ...)))
+       #`(begin
+           (#,form ?before ...
+             [?c.nt ... ::= ?c.rhs ...] ...
+             (~? (~@ #:binding-forms ?b ...)))
+           (hash-set!
+            language-set-hash
+            ?name
+            (hash (~@ '(?c.nt ...)
+                      (cons '?c.s ?c.def)) ...)))]))
+  )
 
-;; TODO: DRY
-(define-syntax (define-extended-language/style stx)
-  (syntax-parse stx
-    [(_ ?name:id ?base:id ?c:clause ... (~optional (~seq #:binding-forms ?b ...)))
-     #'(begin
-         (define-extended-language ?name ?base
-           [?c.nt ... ::= ?c.rhs ...] ...
-           (~? (~@ #:binding-forms ?b ...)))
-         (hash-set!
-          language-set-hash
-          ?name
-          (hash (~@ '(?c.nt ...)
-                    (cons '?c.s ?c.def)) ...)))]))
+(define-syntax define-language/style
+  (make-define-language/style #'define-language))
+
+(define-syntax define-extended-language/style
+  (make-define-language/style #'define-extended-language))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; `render-language/style`
@@ -159,6 +153,9 @@
    (sequence-of-non-terminals nt)
    (basic-text (string-append " ∈ " (symbol->string nt-set))
                (grammar-style))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; non-terminal set
 
 (struct nt-set (s))
 
