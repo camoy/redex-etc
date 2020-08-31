@@ -1,11 +1,15 @@
 #lang scribble/manual
 
-@require[@for-label[redex-etc
+@require[@for-label[pict
+                    pict/convert
+                    redex-etc
                     racket/base
                     racket/math
                     racket/contract
                     racket/function
-                    redex/reduction-semantics]
+                    redex/reduction-semantics
+                    redex/pict
+                    unstable/gui/redex]
          scribble/example]
 
 @(define evaluator
@@ -139,4 +143,149 @@ in our examples.
   @(evaluator '(current-max-steps 5))
   @examples[#:eval evaluator
     (eval:error (⇓ (term ((λ (x) ((x x) x)) (λ (y) ((y y) y))))))]
+}
+
+@section{Typography}
+
+@defform[
+(define-language/style lang-name
+  non-terminal-def ...
+  maybe-binding-spec)]{
+  TODO
+}
+
+@defform[
+(define-extended-language/style extended-lang base-lang
+  non-terminal-def ...
+  maybe-binding-spec)]{
+  TODO
+}
+
+@defproc[
+(render-language/style
+  [lang compiled-lang?]
+  [file (or/c #f path-string?) #f]
+  [#:nts nts (or/c #f (listof (or/c string? symbol?))) (render-language-nts)])
+  pict?]{
+  TODO
+}
+
+@deftogether[(
+  @defform*[(
+    (render-metafunction/style metafunction-name maybe-contract)
+    (render-metafunction/style metafunction-name filename maybe-contract))]
+  @defform[(render-metafunctions/style metafunction-name ...
+             maybe-filename maybe-contract maybe-only-contract)])]{
+  TODO
+}
+
+@defform*[((render-judgment-form/style judgment-form-name)
+           (render-judgment-form/style judgment-form-name filename))]{
+  TODO
+}
+
+@defproc[
+  (render-reduction-relation/style
+    [rel reduction-relation?]
+    [file	(or/c #f path-string?) #f]
+    [#:style style reduction-rule-style/c (rule-pict-style)])
+  (if file void? pict-convertible?)]{
+  TODO
+}
+
+@defproc[(nt-set [non-terminal-def string?]) nt-set?]{
+  TODO
+}
+
+@defproc[(nt-set? [x any/c]) boolean?]{
+  TODO
+}
+
+@defparam[current-rule-label? rule-label? boolean? #:value #f]{}
+@defparam[current-compact-threshold compact-threshold natural?]{}
+@defparam[current-arrow-hash arrow-hash (hash/c symbol? string?)]{}
+
+@deftogether[(
+  @defparam[current-serif-font
+            serif-font
+            text-style/c
+            #:value "Linux Libertine"]
+  @defparam[current-sans-serif-font
+            sans-serif-font
+            text-style/c
+            #:value "Linux Biolinum"]
+  @defparam[current-mono-font
+            mono-font
+            text-style/c
+            #:value "DejaVu Sans Mono"]
+  @defparam[current-font-size
+            font-size
+            natural?
+            #:value 22])]{
+  TODO
+}
+
+@section{Rewriting}
+
+@deftogether[(
+  @defproc[(substitute-rw [op string?]
+                          [#:flip? flip? boolean? #f])
+           rw/c]
+  @defproc[(substitute*-rw [op string?]
+                           [#:flip? flip? boolean? #f])
+           rw/c])]{
+  TODO
+}
+
+@deftogether[(
+  @defthing[lookup-rw rw/c]
+  @defthing[lookup*-rw rw/c])]{
+  TODO
+}
+
+@defproc[(typing-rw [op string?]) rw/c]{
+  TODO
+}
+
+@defproc[(set-add-rw [op string?]) rw/c]{
+  TODO
+}
+
+@deftogether[(
+  @defproc[(sf-rw [font-family text-style/c]) rw/c]
+  @defproc[(sans-rw [font-family text-style/c]) rw/c]
+  @defproc[(mono-rw [font-family text-style/c]) rw/c])]{
+  TODO
+}
+
+@defproc[(unquote-rw [replacement
+                      (or/c string?
+                            symbol?
+                            pict-convertible?
+                            (listof (or/c (symbols 'spring) lw?)))])
+         (-> lw? lw?)]{
+  TODO
+}
+
+@defthing[rw/c contract?]{
+  Recognizes a rewriter.
+  Equivalent to
+  @racket[(-> (listof lw?) (listof (or/c lw? string? pict-convertible?)))].
+}
+
+
+@deftogether[(
+  @defparam[default-atomic-rewriters
+            atomic-rewriters
+            (plistof symbol?
+                     (listof (or/c lw?
+                                   string?
+                                   pict-convertible?)))]
+  @defparam[default-compound-rewriters
+            compound-rewriters
+            (plistof symbol? rw/c)]
+  @defparam[default-unquote-rewriters
+            unquote-rewriters
+            (plistof symbol? (-> lw? lw?))])]{
+  TODO
 }
