@@ -34,6 +34,7 @@
  render-metafunction/style
  render-metafunctions/style
  render-judgment-form/style
+ render-term/style
  render-reduction-relation/style
 
  substitute-rw

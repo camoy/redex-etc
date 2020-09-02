@@ -16,6 +16,7 @@
 (define current-rule-label? (make-parameter #t))
 (define current-compact-threshold (make-parameter 450))
 (define current-rule-label-padding (make-parameter 4))
+(define current-label-margin (make-parameter 10))
 
 (define (rp->pict-label rp)
   (cond [(rule-pict-info-computed-label rp) => bracket]
@@ -34,7 +35,12 @@
         (blank)))))
 
 (define (bracket label)
-  (frame (inset label (current-rule-label-padding))))
+  (define w (+ (pict-width label) (* 2 (current-rule-label-padding))))
+  (define h (+ (pict-height label) (* 2 (current-rule-label-padding))))
+  (cc-superimpose (filled-rectangle w h #:color "WhiteSmoke" #:draw-border? #f)
+                  label)
+  #;(frame (inset label (current-rule-label-padding))
+         #:color "Gray"))
 
 (define (rule-style rps)
   (let* ([max-w (apply max
@@ -67,6 +73,7 @@
                   [add-label (lambda (p label)
                                (if (current-rule-label?)
                                    (htl-append
+                                    (current-label-margin)
                                     p
                                     (inset label (- total-w (pict-width p) (pict-width label))
                                            0 0 0))
