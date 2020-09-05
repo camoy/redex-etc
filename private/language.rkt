@@ -25,7 +25,7 @@
                   flatten-grammar-info
                   nts->str
                   sequence-of-non-terminals
-                  add-bars-and-::=
+                  make-bar
                   basic-text)
          (for-syntax racket/base
                      racket/match
@@ -148,7 +148,7 @@
                   [else
                    (lw->pict
                     all-nts
-                    (find-enclosing-loc-wrapper (add-bars-and-::= (cdr line)))
+                    (find-enclosing-loc-wrapper (add-bars-and-= (cdr line)))
                     (adjust 'language-line))])))))]))
 
 (define (lhs nt nt-set)
@@ -156,6 +156,54 @@
    (sequence-of-non-terminals nt)
    (basic-text (string-append " ∈ " (symbol->string nt-set))
                (grammar-style))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; bars
+
+(define (add-bars-and-= lst)
+  (cond
+    [(null? lst) null]
+    [else
+     (cons
+      (let ([fst (car lst)])
+        (build-lw
+         (rc-superimpose (ghost (make-bar)) (make-=))
+         (lw-line fst)
+         (lw-line-span fst)
+         (lw-column fst)
+         0))
+      (let loop ([fst (car lst)]
+                 [rst (cdr lst)])
+        (cond
+          [(null? rst) (list fst)]
+          [else
+           (let* ([snd (car rst)]
+                  [bar
+                   (cond
+                     [(= (lw-line snd)
+                         (lw-line fst))
+                      (let* ([line (lw-line snd)]
+                             [line-span (lw-line-span snd)]
+                             [column (+ (lw-column fst)
+                                        (lw-column-span fst))]
+                             [column-span
+                              (max (- (lw-column snd)
+                                      (+ (lw-column fst)
+                                         (lw-column-span fst)))
+                                   0)])
+                        (build-lw (make-bar) line line-span column column-span))]
+                     [else
+                      (build-lw
+                       (rc-superimpose (make-bar) (ghost (make-=)))
+                       (lw-line snd)
+                       (lw-line-span snd)
+                       (lw-column snd)
+                       0)])])
+             (list* fst
+                    bar
+                    (loop snd (cdr rst))))])))]))
+
+(define (make-=) (basic-text " = " (grammar-style)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; non-terminal set

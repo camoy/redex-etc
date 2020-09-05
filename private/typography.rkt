@@ -65,7 +65,6 @@
     ;; execute body
     (parameterize
         ([judgment-form-show-rule-names #f]
-         [white-square-bracket styled-white-square-bracket]
          [label-style serif-font]
          [grammar-style sans-serif-font]
          [paren-style mono-font]
@@ -93,13 +92,6 @@
                   (current-unquote-rewriters))])
       (with-rewriters
         (λ () ?body ...)))))
-
-;; Use normal parentheses instead of denotation brackets for metafunctions
-(define (styled-white-square-bracket open?)
-  (let ([text (current-text)])
-    (text (if open? "(" ")")
-          (default-style)
-          (default-font-size))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; stylish renderers
@@ -129,14 +121,11 @@
 
 (define default-atomic-rewriters
   (make-parameter
-   (list '-> "→"
-         '->i "→i"
-         'real "ℝ"
+   (list 'real "ℝ"
          'number "ℂ"
          'integer "ℤ"
          'natural "ℕ"
-         'hole "□"
-         )))
+         'hole "□")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; compound rewriters
@@ -187,13 +176,21 @@
   (match-define (list L _ e ...) lws)
   (list* L (text name (current-serif-font) (current-font-size)) " " e))
 
-(define ((sans-rw name) lws)
-  (match-define (list L _ e ...) lws)
-  (list* L (text name (current-sans-serif-font) (current-font-size)) " " e))
+(define ((sans-rw name #:mf? [mf? #f]) lws)
+  (match-define (list L _ e ... R) lws)
+  (define name* (text name (current-sans-serif-font) (current-font-size)))
+  (if mf?
+      (append (list name* (default-white-square-bracket #t))
+              e
+              (list (default-white-square-bracket #f)))
+      (append (list L name* " ") e (list R))))
 
-(define ((mono-rw name) lws)
-  (match-define (list L _ e ...) lws)
-  (list* L (text name (current-mono-font) (current-font-size)) " " e))
+(define ((mono-rw name #:parens? [parens? #t]) lws)
+  (match-define (list L _ es ... R) lws)
+  (define mono-text (text name (current-mono-font) (current-font-size)))
+  (if parens?
+      (append (list L mono-text " ") es (list R))
+      (append (list mono-text " ") es (list ""))))
 
 (define rw/c
   (-> (listof lw?) (listof (or/c lw? string? pict-convertible?))))
