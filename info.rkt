@@ -16,10 +16,14 @@
     "unstable-redex"
     "base"
     "redex-lib"
-    "private-in"))
+    "private-in"
+    "draw-lib"
+    "pict-lib"))
+
 
 (define build-deps
   '("redex-doc"
     "chk-lib"
     "racket-doc"
-    "scribble-lib"))
+    "scribble-lib"
+    "pict-doc"))
