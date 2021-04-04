@@ -64,7 +64,9 @@
        (zero? k)
        (render-top lang-name forms top-pat)
        desc)))
-  ((current-production-procedure) base-lang rhs? name set rhs-list))
+  (define rhs-list*
+    (if base-lang ((current-rhs-extend-procedure) rhs-list) rhs-list))
+  ((current-production-procedure) rhs? name set rhs-list*))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; pattern renderer

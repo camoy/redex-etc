@@ -6,11 +6,12 @@
 (provide default-language-template
          default-set-template
          default-set-procedure
+         default-rhs-extend-string
+         default-rhs-extend-procedure
          default-rhs-template
          default-rhs-procedure
          default-nt-template
          default-nt-procedure
-         default-production-extend
          default-production-with-rhs-template
          default-production-no-rhs-template
          default-production-procedure
@@ -21,11 +22,12 @@
          current-language-template
          current-set-template
          current-set-procedure
+         current-rhs-extend-string
+         current-rhs-extend-procedure
          current-rhs-template
          current-rhs-procedure
          current-nt-template
          current-nt-procedure
-         current-production-extend
          current-production-with-rhs-template
          current-production-no-rhs-template
          current-production-procedure
@@ -53,6 +55,12 @@
       (format (current-set-template) s)
       s))
 
+(define default-rhs-extend-string "\\ldots")
+
+(define (default-rhs-extend-procedure rhs-list)
+  (cons ((current-rhs-procedure) #f #t (current-rhs-extend-string) "")
+        rhs-list))
+
 (define default-rhs-template
   "& \\(~a\\) & \\(~a\\) & ~a \\\\")
 
@@ -69,27 +77,20 @@
     (format (current-nt-template) nt))
   (unicode-lookup nt fail))
 
-(define default-production-extend
-  "\\ldots")
-
 (define default-production-with-rhs-template
   "\\(~a ~a\\) ~a")
 
 (define default-production-no-rhs-template
   "\\(~a ~a\\) \\\\")
 
-(define (default-production-procedure extend? rhs? name set rhs-list)
+(define (default-production-procedure rhs? name set rhs-list)
   (define set* (or ((current-set-procedure) set) ""))
-  (define extend-line
-    ((current-rhs-procedure) #f #t (current-production-extend) ""))
-  (define rhs-list*
-    (if extend? (cons extend-line rhs-list) rhs-list))
   (cond
     [rhs?
      (format (current-production-with-rhs-template)
              ((current-nt-procedure) name)
              set*
-             (string-join rhs-list*))]
+             (string-join rhs-list))]
     [else
      (format (current-production-no-rhs-template)
              ((current-nt-procedure) name)
@@ -126,6 +127,12 @@
 (define current-set-procedure
   (make-parameter default-set-procedure))
 
+(define current-rhs-extend-string
+  (make-parameter default-rhs-extend-string))
+
+(define current-rhs-extend-procedure
+  (make-parameter default-rhs-extend-procedure))
+
 (define current-rhs-template
   (make-parameter default-rhs-template))
 
@@ -137,9 +144,6 @@
 
 (define current-nt-procedure
   (make-parameter default-nt-procedure))
-
-(define current-production-extend
-  (make-parameter default-production-extend))
 
 (define current-production-with-rhs-template
   (make-parameter default-production-with-rhs-template))
