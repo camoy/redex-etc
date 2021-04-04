@@ -13,9 +13,15 @@
          racket/match
          latex-utils/scribble/unmap
          file/sha1
+         "private/parameter.rkt"
+         "private/plstx.rkt"
          "private/render.rkt")
 
 (begin-for-syntax
+  (define-splicing-syntax-class extend
+    (pattern (~seq #:extend extend:string))
+    (pattern (~seq) #:attr extend #f))
+
   (define-syntax-class in-lit
     #:datum-literals (in ∈)
     (pattern (~or in ∈)))
@@ -40,26 +46,53 @@
              #:with rhs? #'#t
              #:with set #'#f)))
 
+(begin-for-syntax
+  (define (path->lang p)
+    (string->symbol
+     (path->string
+      (file-name-from-path
+       (path-replace-extension p #""))))))
+
 (define-syntax (-#%module-begin stx)
   (syntax-parse stx
-    [(_ ?p:production ...)
-     #:with ?filename
-     (string->symbol
-      (path->string
-       (file-name-from-path
-        (path-replace-extension (syntax-source stx) #""))))
+    [(_ ?e:extend ?p:production ...)
+     #:with ?name (path->lang (syntax-source stx))
+     #:with ?extend-name
+     (datum->syntax
+      stx
+      (cond
+        [(attribute ?e.extend) => (λ (path) (path->lang (syntax-e path)))]
+        [else #f]))
+     #:with [?require (?define ...)]
+     (if (attribute ?e.extend)
+         #`[(require ?e.extend)
+            (define-extended-language ?name ?extend-name)]
+         #'[(void)
+            (define-language ?name)])
      #'(#%module-begin
-        (provide ?filename)
-
-        (define-language ?filename
+        (provide ?name)
+        ?require
+        (?define ...
           [?p.nt ... ::= ?p.r.e ...]
           ...)
 
         (module+ main
-          (displayln
-           (render-lang
-            '?filename
-            ?filename
-            (list (list ?p.r.desc ...) ...)
-            (list '?p.rhs? ...)
-            (list '?p.set ...)))))]))
+          (parameterize ()
+            (displayln
+             (render-lang
+              '?name
+              ?name
+              ?extend-name
+              (list (list ?p.r.desc ...) ...)
+              (list '?p.rhs? ...)
+              (list '?p.set ...))))))]))
+
+;; Plstx
+#|
+([current-language-template
+  plstx-language-template]
+ [current-rhs-procedure
+  plstx-rhs-procedure]
+ [current-production-procedure
+  plstx-production-procedure])
+|#

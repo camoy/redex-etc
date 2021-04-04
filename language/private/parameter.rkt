@@ -10,8 +10,10 @@
          default-rhs-procedure
          default-nt-template
          default-nt-procedure
+         default-production-extend
          default-production-with-rhs-template
          default-production-no-rhs-template
+         default-production-procedure
          default-terminal-template
          default-space-procedure
          default-repeat-procedure
@@ -23,8 +25,10 @@
          current-rhs-procedure
          current-nt-template
          current-nt-procedure
+         current-production-extend
          current-production-with-rhs-template
          current-production-no-rhs-template
+         current-production-procedure
          current-terminal-template
          current-terminal-procedure
          current-space-procedure
@@ -52,9 +56,9 @@
 (define default-rhs-template
   "& \\(~a\\) & \\(~a\\) & ~a \\\\")
 
-(define (default-rhs-procedure first? rhs desc)
+(define (default-rhs-procedure base-lang first? rhs desc)
   (format (current-rhs-template)
-          (if first? "=" "\\mid")
+          (if (and first? (not base-lang)) "=" "\\mid")
           rhs
           desc))
 
@@ -65,15 +69,31 @@
     (format (current-nt-template) nt))
   (unicode-lookup nt fail))
 
+(define default-production-extend
+  "\\ldots")
+
 (define default-production-with-rhs-template
   "\\(~a ~a\\) ~a")
-
-#;":~a ~a ::= ~a \\\\"
 
 (define default-production-no-rhs-template
   "\\(~a ~a\\) \\\\")
 
-#;"*:~a ~a \\\\"
+(define (default-production-procedure base-lang rhs? name set rhs-list)
+  (define set* (or ((current-set-procedure) set) ""))
+  (define extend-line
+    ((current-rhs-procedure) #f #t (current-production-extend) ""))
+  (define rhs-list*
+    (if base-lang (cons extend-line rhs-list) rhs-list))
+  (cond
+    [rhs?
+     (format (current-production-with-rhs-template)
+             ((current-nt-procedure) name)
+             set*
+             (string-join rhs-list*))]
+    [else
+     (format (current-production-no-rhs-template)
+             ((current-nt-procedure) name)
+             set*)]))
 
 (define default-terminal-template
   "{\\tt ~a}")
@@ -118,11 +138,17 @@
 (define current-nt-procedure
   (make-parameter default-nt-procedure))
 
+(define current-production-extend
+  (make-parameter default-production-extend))
+
 (define current-production-with-rhs-template
   (make-parameter default-production-with-rhs-template))
 
 (define current-production-no-rhs-template
   (make-parameter default-production-no-rhs-template))
+
+(define current-production-procedure
+  (make-parameter default-production-procedure))
 
 (define current-terminal-template
   (make-parameter default-terminal-template))

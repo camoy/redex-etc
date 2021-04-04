@@ -22,13 +22,28 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; language renderer
 
-(define (render-lang lang-name x descs rhs sets)
+(define (render-lang lang-name lang base-lang descs rhs sets)
   (define forms (make-hash '()))
-  (define nts (compiled-lang-lang x))
-  (define prods (map (render-nt lang-name forms) nts descs rhs sets))
+  (define nts (compiled-lang-lang lang))
+  (define base-nts (if base-lang (compiled-lang-lang base-lang) '()))
+  (define nts* (nts-combine base-nts nts))
+  (define prods (map (render-nt lang-name base-lang forms) nts* descs rhs sets))
   (format (current-language-template)
           (string-join (render-provides forms) "\n")
           (string-join prods "\n")))
+
+(define (nts-combine base-nts nts)
+  (define base-hash
+    (for/hash ([cur-nt (in-list base-nts)])
+      (match-define (nt name rhss) cur-nt)
+      (values name rhss)))
+  (define nts*
+    (for/list ([cur-nt (in-list nts)])
+      (match-define (nt name rhss) cur-nt)
+      (define base-rhss (hash-ref base-hash name (λ _ '())))
+      (define rhss* (filter (λ (x) (not (member x base-rhss))) rhss))
+      (and (not (null? rhss*)) (nt name rhss*))))
+  (filter values nts*))
 
 (define (render-provides forms)
   (for/list ([(key val) (in-hash forms)])
@@ -37,28 +52,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; nonterminal renderer
 
-(define ((render-nt lang-name forms) cur-nt descs rhs? set)
+(define ((render-nt lang-name base-lang forms) cur-nt descs rhs? set)
   (match-define (nt name rhs*) cur-nt)
-  (define set* (or ((current-set-procedure) set) ""))
-  (cond
-    [rhs?
-     (define rhs-list
-       (for/list ([cur-rhs (in-list rhs*)]
-                  [desc (in-list descs)]
-                  [k (in-naturals)])
-         (match-define (rhs top-pat) cur-rhs)
-         ((current-rhs-procedure)
-          (zero? k)
-          (render-top lang-name forms top-pat)
-          desc)))
-     (format (current-production-with-rhs-template)
-             ((current-nt-procedure) name)
-             set*
-             (string-join rhs-list))]
-    [else
-     (format (current-production-no-rhs-template)
-             ((current-nt-procedure) name)
-             set*)]))
+  (define rhs-list
+    (for/list ([cur-rhs (in-list rhs*)]
+               [desc (in-list descs)]
+               [k (in-naturals)])
+      (match-define (rhs top-pat) cur-rhs)
+      ((current-rhs-procedure)
+       base-lang
+       (zero? k)
+       (render-top lang-name forms top-pat)
+       desc)))
+  ((current-production-procedure) base-lang rhs? name set rhs-list))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; pattern renderer
