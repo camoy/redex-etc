@@ -56,9 +56,9 @@
 (define default-rhs-template
   "& \\(~a\\) & \\(~a\\) & ~a \\\\")
 
-(define (default-rhs-procedure base-lang first? rhs desc)
+(define (default-rhs-procedure extend? first? rhs desc)
   (format (current-rhs-template)
-          (if (and first? (not base-lang)) "=" "\\mid")
+          (if (and first? (not extend?)) "=" "\\mid")
           rhs
           desc))
 
@@ -78,12 +78,12 @@
 (define default-production-no-rhs-template
   "\\(~a ~a\\) \\\\")
 
-(define (default-production-procedure base-lang rhs? name set rhs-list)
+(define (default-production-procedure extend? rhs? name set rhs-list)
   (define set* (or ((current-set-procedure) set) ""))
   (define extend-line
     ((current-rhs-procedure) #f #t (current-production-extend) ""))
   (define rhs-list*
-    (if base-lang (cons extend-line rhs-list) rhs-list))
+    (if extend? (cons extend-line rhs-list) rhs-list))
   (cond
     [rhs?
      (format (current-production-with-rhs-template)

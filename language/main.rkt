@@ -77,7 +77,13 @@
           ...)
 
         (module+ main
-          (parameterize ()
+          (parameterize #;()
+            ([current-language-template
+              plstx-language-template]
+             [current-rhs-procedure
+              plstx-rhs-procedure]
+             [current-production-procedure
+              plstx-production-procedure])
             (displayln
              (render-lang
               '?name
