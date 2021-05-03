@@ -14,6 +14,7 @@
          redex/reduction-semantics
          redex/private/lang-struct
          racket/string
+         racket/list
          racket/match
          latex-utils/scribble/unmap
          file/sha1
@@ -22,17 +23,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; language renderer
 
-(define (render-lang lang-name lang base-lang descs rhs sets)
+(define (render-lang lang-name lang base-lang descs rhs lang-nts sets)
   (define forms (make-hash '()))
   (define nts (compiled-lang-lang lang))
   (define base-nts (if base-lang (compiled-lang-lang base-lang) '()))
-  (define nts* (nts-combine base-nts nts))
+  (define nts* (combine-nts base-nts nts lang-nts))
   (define prods (map (render-nt lang-name base-lang forms) nts* descs rhs sets))
   (format (current-language-template)
           (string-join (render-provides forms) "\n")
           (string-join prods "\n")))
 
-(define (nts-combine base-nts nts)
+(define (combine-nts base-nts nts lang-nts)
   (define base-hash
     (for/hash ([cur-nt (in-list base-nts)])
       (match-define (nt name rhss) cur-nt)
@@ -42,8 +43,11 @@
       (match-define (nt name rhss) cur-nt)
       (define base-rhss (hash-ref base-hash name (λ _ '())))
       (define rhss* (filter (λ (x) (not (member x base-rhss))) rhss))
-      (and (not (null? rhss*)) (nt name rhss*))))
-  (filter values nts*))
+      (and (not (null? rhss*)) (cons name (nt name rhss*)))))
+  (define nts-hash
+    (make-immutable-hash (filter values nts*)))
+  (for/list ([nt (in-list lang-nts)])
+    (hash-ref nts-hash (first nt))))
 
 (define (render-provides forms)
   (for/list ([(key val) (in-hash forms)])

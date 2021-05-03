@@ -62,7 +62,7 @@
         rhs-list))
 
 (define default-rhs-template
-  "& \\(~a\\) & \\(~a\\) & ~a \\\\")
+  "\n& \\(~a\\) & \\(~a\\) & \\textit{~a} \\\\")
 
 (define (default-rhs-procedure extend? first? rhs desc)
   (format (current-rhs-template)

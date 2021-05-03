@@ -77,8 +77,8 @@
           ...)
 
         (module+ main
-          (parameterize #;()
-            ([current-language-template
+          (parameterize ()
+            #;([current-language-template
               plstx-language-template]
              [current-rhs-procedure
               plstx-rhs-procedure]
@@ -91,6 +91,7 @@
               ?extend-name
               (list (list ?p.r.desc ...) ...)
               (list '?p.rhs? ...)
+              (list (list '?p.nt ...) ...)
               (list '?p.set ...))))))]))
 
 ;; Plstx
