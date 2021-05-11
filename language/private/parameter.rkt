@@ -46,7 +46,7 @@
 ;; defaults
 
 (define default-language-template
-  "~a\n\\begin{tabular}{r@{ } c@{ } l@{\\qquad} l}\n~a\n\\end{tabular}")
+  "~a\\begin{tabular}{r@{ } c@{ } l@{\\qquad} l}\n~a\n\\end{tabular}")
 
 (define default-set-template "\\in {\\sf ~a}")
 

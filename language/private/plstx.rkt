@@ -17,7 +17,7 @@
 ;; defaults
 
 (define plstx-language-template
-  "~a\n\\begin{plstx}\n~a\n\\end{plstx}")
+  "~a\\begin{plstx}\n~a\n\\end{plstx}")
 
 (define (plstx-rhs-procedure extend? first? rhs desc)
   (format "~a ~a"
@@ -27,9 +27,11 @@
 (define (plstx-production-procedure rhs? name set rhs-list)
   (define fmt-str
     (if rhs?
-        "~a : ~a ::= ~a \\\\"
-        "*~a: ~a [\\in] ~a \\\\"))
+        ": ~a \\in {\\sf ~a} ::= ~a \\\\"
+        "*: ~a \\in {\\sf ~a} [ ] ~a \\\\"))
   (format fmt-str
-          set
           ((current-nt-procedure) name)
-          (string-join rhs-list)))
+          set
+          (if rhs?
+              (string-join rhs-list)
+              "")))

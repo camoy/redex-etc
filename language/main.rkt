@@ -10,6 +10,7 @@
          redex/reduction-semantics
          redex/private/lang-struct
          racket/string
+         racket/cmdline
          racket/match
          latex-utils/scribble/unmap
          file/sha1
@@ -44,7 +45,12 @@
              #:with rhs? #'#t)
     (pattern [nt ...+ ::= r:rhs ...]
              #:with rhs? #'#t
-             #:with set #'#f)))
+             #:with set #'#f))
+
+  (define-splicing-syntax-class bindings
+    #:attributes ([e 1])
+    (pattern (~seq #:binding-forms e ...+))
+    (pattern (~seq) #:with (e ...) #'())))
 
 (begin-for-syntax
   (define (path->lang p)
@@ -53,9 +59,16 @@
       (file-name-from-path
        (path-replace-extension p #""))))))
 
+(define (parameterize-plstx body)
+  (parameterize
+      ([current-language-template plstx-language-template]
+       [current-rhs-procedure plstx-rhs-procedure]
+       [current-production-procedure plstx-production-procedure])
+    (body)))
+
 (define-syntax (-#%module-begin stx)
   (syntax-parse stx
-    [(_ ?e:extend ?p:production ...)
+    [(_ ?e:extend ?p:production ... ?b:bindings)
      #:with ?name (path->lang (syntax-source stx))
      #:with ?extend-name
      (datum->syntax
@@ -73,33 +86,31 @@
         (provide ?name)
         ?require
         (?define ...
-          [?p.nt ... ::= ?p.r.e ...]
-          ...)
+          [?p.nt ... ::= ?p.r.e ...] ...
+          #:binding-forms ?b.e ...)
 
         (module+ main
-          (parameterize ()
-            #;([current-language-template
-              plstx-language-template]
-             [current-rhs-procedure
-              plstx-rhs-procedure]
-             [current-production-procedure
-              plstx-production-procedure])
-            (displayln
-             (render-lang
-              '?name
-              ?name
-              ?extend-name
-              (list (list ?p.r.desc ...) ...)
-              (list '?p.rhs? ...)
-              (list (list '?p.nt ...) ...)
-              (list '?p.set ...))))))]))
+          (define (with-parameterization f) (f))
+          (define provides? #t)
 
-;; Plstx
-#|
-([current-language-template
-  plstx-language-template]
- [current-rhs-procedure
-  plstx-rhs-procedure]
- [current-production-procedure
-  plstx-production-procedure])
-|#
+          (command-line
+           #:once-any
+           [("-p" "--plstx")
+            "Format using the `plstx` environment"
+            (set! with-parameterization parameterize-plstx)]
+           [("-n" "--no-provide")
+            "Don't include `providecommand` definitions."
+            (set! provides? #f)])
+
+          (with-parameterization
+           (λ ()
+             (displayln
+              (render-lang
+               '?name
+               ?name
+               ?extend-name
+               provides?
+               (list (list ?p.r.desc ...) ...)
+               (list '?p.rhs? ...)
+               (list (list '?p.nt ...) ...)
+               (list '?p.set ...)))))))]))

@@ -21,16 +21,24 @@
          "parameter.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; data
+
+;; Adds an extra field indicating if the non-terminal is an extension.
+(struct nt* nt (extended?))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; language renderer
 
-(define (render-lang lang-name lang base-lang descs rhs lang-nts sets)
+(define (render-lang lang-name lang base-lang provides? descs rhs lang-nts sets)
   (define forms (make-hash '()))
   (define nts (compiled-lang-lang lang))
   (define base-nts (if base-lang (compiled-lang-lang base-lang) '()))
   (define nts* (combine-nts base-nts nts lang-nts))
-  (define prods (map (render-nt lang-name base-lang forms) nts* descs rhs sets))
+  (define prods (map (render-nt lang-name forms) nts* descs rhs sets))
   (format (current-language-template)
-          (string-join (render-provides forms) "\n")
+          (if provides?
+              (string-join (render-provides forms) "\n" #:after-last "\n")
+              "")
           (string-join prods "\n")))
 
 (define (combine-nts base-nts nts lang-nts)
@@ -41,9 +49,10 @@
   (define nts*
     (for/list ([cur-nt (in-list nts)])
       (match-define (nt name rhss) cur-nt)
+      (define extended? (hash-has-key? base-hash name))
       (define base-rhss (hash-ref base-hash name (λ _ '())))
       (define rhss* (filter (λ (x) (not (member x base-rhss))) rhss))
-      (and (not (null? rhss*)) (cons name (nt name rhss*)))))
+      (and (not (null? rhss*)) (cons name (nt* name rhss* extended?)))))
   (define nts-hash
     (make-immutable-hash (filter values nts*)))
   (for/list ([nt (in-list lang-nts)])
@@ -56,20 +65,21 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; nonterminal renderer
 
-(define ((render-nt lang-name base-lang forms) cur-nt descs rhs? set)
-  (match-define (nt name rhs*) cur-nt)
+(define ((render-nt lang-name forms) cur-nt descs rhs? set)
+  (match-define (nt* name rhs* extended?) cur-nt)
+  (define descs* (if extended? (rest descs) descs))
   (define rhs-list
     (for/list ([cur-rhs (in-list rhs*)]
-               [desc (in-list descs)]
+               [desc (in-list descs*)]
                [k (in-naturals)])
       (match-define (rhs top-pat) cur-rhs)
       ((current-rhs-procedure)
-       base-lang
+       extended?
        (zero? k)
        (render-top lang-name forms top-pat)
        desc)))
   (define rhs-list*
-    (if base-lang ((current-rhs-extend-procedure) rhs-list) rhs-list))
+    (if extended? ((current-rhs-extend-procedure) rhs-list) rhs-list))
   ((current-production-procedure) rhs? name set rhs-list*))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
