@@ -3,7 +3,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; provide
 
-(provide match-term)
+(provide match-term
+         not-match?)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -17,6 +18,9 @@
 (define-simple-macro (match-term L:id e0:expr [pat e:expr] ...)
   ((term-match/single L [pat e] ...) e0))
 
+(define-syntax-rule (not-match? lang p e)
+  (not (redex-match? lang p (term e))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; test
 
@@ -25,6 +29,8 @@
            chk)
 
   (chk
+   #:t (not-match? Λ (λ (x) e) x)
+   #:! #:t (not-match? Λ (λ (x) e) (λ (y) y))
    #:t
    (match-term
     Λ (term (λ (x) x))

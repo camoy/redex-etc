@@ -10,6 +10,7 @@
 
  ;; `macros.rkt`
  match-term
+ not-match?
 
  ;; `metas.rkt`
  substitute-env

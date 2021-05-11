@@ -108,6 +108,13 @@ in our examples.
       [(λ _ e) (term e)])]
 }
 
+@defform[(not-match? lang pattern term)]{
+  Returns if the given pattern doesn't match the term.
+  @examples[#:eval evaluator
+    (not-match? Λ x (λ (y) y))
+    (not-match? Λ x y)]
+}
+
 @section{Functions}
 
 @defproc[(make-eval [rr reduction-relation?]
