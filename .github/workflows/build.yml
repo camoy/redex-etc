@@ -16,6 +16,6 @@ jobs:
           variant: 'regular'
           version: '8.1'
       - run: raco pkg install --auto --no-setup --skip-installed
-      - run: raco setup --fast-clean redex-parameter
-      - run: raco setup redex-parameter
+      - run: raco setup --fast-clean redex-etc
+      - run: raco setup redex-etc
       - run: raco test --drdr .
