@@ -38,7 +38,8 @@
 
 (define-metafunction LANG
   lookup : ([any any] ...) any -> any or #f
-  [(lookup (_ ... [any any_0] _ ...) any) any_0])
+  [(lookup (_ ... [any any_0] _ ...) any) any_0]
+  [(lookup _ _) #f])
 
 (define-metafunction LANG
   ext1 : ([any any] ...) [any any] -> ([any any] ...)
@@ -87,6 +88,7 @@
    (term (substitute* (x y) [x 1] [y 2])) (term (1 2))
    (term (substitute* x [x (x y)] [x 1] [y 2])) (term (1 2))
 
+   (term (lookup () x)) (term #f)
    (term (lookup ([x 1]) x)) (term 1)
    (term (lookup ([x 1] [y 2]) y)) (term 2)
 
