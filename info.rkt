@@ -12,7 +12,8 @@
 ;; Dependencies
 
 (define deps
-  '("redex-pict-lib"
+  '("latex-utils"
+    "redex-pict-lib"
     "unstable-redex"
     "base"
     "redex-lib"

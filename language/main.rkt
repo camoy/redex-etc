@@ -7,13 +7,9 @@
 (require (for-syntax racket/base
                      racket/path
                      syntax/parse)
-         redex/reduction-semantics
-         redex/private/lang-struct
-         racket/string
          racket/cmdline
-         racket/match
-         latex-utils/scribble/unmap
-         file/sha1
+         redex/private/lang-struct
+         redex/reduction-semantics
          "private/parameter.rkt"
          "private/plstx.rkt"
          "private/render.rkt")

@@ -8,16 +8,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require (for-syntax racket/base
-                     racket/path
-                     syntax/parse)
-         redex/reduction-semantics
-         redex/private/lang-struct
-         racket/string
+(require file/sha1
          racket/list
          racket/match
-         latex-utils/scribble/unmap
-         file/sha1
+         racket/string
+         redex/private/lang-struct
          "parameter.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
