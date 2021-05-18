@@ -53,8 +53,7 @@
      (format "\\~a{~a}"
              cmd
              (string-join (map texexpr->string e) " "))]
-    [(? list?)
-     (format "(~a)" (string-join (map texexpr->string e) " "))]))
+    [(? list?) (string-join (map texexpr->string e) " ")]))
 
 (define (option->string e)
   (format "[~a]" (texexpr->string e)))

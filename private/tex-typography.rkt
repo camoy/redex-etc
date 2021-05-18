@@ -3,6 +3,7 @@
 (require racket/match
          racket/list
          racket/string
+         racket/function
          (prefix-in pict: redex/pict)
          redex/private/reduction-semantics
          redex/private/struct
@@ -20,77 +21,99 @@
 (struct rewriter (symbol proc))
 (struct compound-rewriter rewriter ())
 (struct atomic-rewriter rewriter ())
-(struct unquote-rewriter (proc))
+(struct unquote-rewriter rewriter ())
 
-(struct rewriters (compounds atomics unquoted))
-
-(define (default-unquote-rewriter . args)
-  (format "~a" args))
+(struct rewriters (compounds atomics unquotes))
 
 (define (make-rewriters . rws)
   (for/fold ([compounds (hash)]
              [atomics (hash)]
-             [unquoted default-unquote-rewriter]
-             #:result (rewriters compounds atomics unquoted))
+             [unquotes (hash)]
+             #:result (rewriters compounds atomics unquotes))
             ([rw (in-list rws)])
     (match rw
       [(compound-rewriter symbol proc)
-       (values (hash-set compounds symbol proc) atomics unquoted)]
+       (values (hash-set compounds symbol proc) atomics unquotes)]
       [(atomic-rewriter symbol proc)
-       (values compounds (hash-set atomics symbol proc) unquoted)]
-      [(unquote-rewriter proc)
-       (values compounds atomics proc)])))
+       (values compounds (hash-set atomics symbol proc) unquotes)]
+      [(unquote-rewriter symbol proc)
+       (values compounds atomics (hash-set unquotes symbol proc))])))
 
 (define current-rewriters
   (make-parameter (make-rewriters)))
+
+(define (default-fallback-compound-rewriter l)
+  `("(" ,@l ")"))
+
+(define current-fallback-compound-rewriter
+  (make-parameter default-fallback-compound-rewriter))
 
 (define (compound-rewrite head args)
   (define compounds (rewriters-compounds (current-rewriters)))
   (define proc (hash-ref compounds (pict:lw-e head) (λ _ #f)))
   (if proc
       (apply proc (list->sexp args))
-      (list->sexp (cons head args) #:rewrite? #f)))
+      ((current-fallback-compound-rewriter)
+       (list->sexp (cons head args) #:rewrite? #f))))
+
+(define (default-fallback-atomic-rewriter l)
+  l)
+
+(define current-fallback-atomic-rewriter
+  (make-parameter default-fallback-atomic-rewriter))
 
 (define (atomic-rewrite sym)
   (define atomics (rewriters-atomics (current-rewriters)))
   (define proc (hash-ref atomics sym (λ _ #f)))
-  (if proc (proc sym) (symbol->string sym)))
+  (if proc
+      (proc sym)
+      ((current-fallback-atomic-rewriter)
+       (symbol->string sym))))
 
-(define (unquote-rewrite es)
-  (apply (rewriters-unquoted (current-rewriters)) es))
+(define (default-fallback-unquote-rewriter l)
+  `("(" ,@l ")"))
+
+(define current-fallback-unquote-rewriter
+  (make-parameter default-fallback-unquote-rewriter))
+
+(define (unquote-rewrite l)
+  (match (filter pict:lw? l)
+    [(or (list (struct* pict:lw ([e "("])) x xt ... (struct* pict:lw ([e ")"])))
+         (list (struct* pict:lw ([e "["])) x xt ... (struct* pict:lw ([e "]"])))
+         (list (struct* pict:lw ([e "{"])) x xt ... (struct* pict:lw ([e "}"]))))
+     (define unquotes (rewriters-unquotes (current-rewriters)))
+     (define proc (hash-ref unquotes (pict:lw-e x) (λ _ #f)))
+     (if proc
+         (apply proc (list->sexp xt))
+         ((current-fallback-unquote-rewriter)
+          (list->sexp (cons x xt))))]
+    [l* (map lw->sexp l*)]))
 
 ;;
 ;; lw
 ;;
 
 (define (lw->sexp l)
-  (match l
-    ['spring #f]
-    [(struct* pict:lw ([e e] [unq? unq?]))
-     (match e
-       ["" #f]
-       [(? string? e) e]
-       [(? symbol? e) (atomic-rewrite e)]
-       [(? list? e)
-        (define e* (list->sexp e))
-        (if unq?
-            (unquote-rewrite e*)
-            e*)])]))
+  (match-define (struct* pict:lw ([e e] [unq? unq?])) l)
+  (match e
+    ["" null]
+    [(? string? e) e]
+    [(? symbol? e) (atomic-rewrite e)]
+    [(? list? e)
+     (if unq?
+         (unquote-rewrite e)
+         (list->sexp e))]))
 
 (define (list->sexp l #:rewrite? [rw? #t])
-  (match l
+  (match (filter pict:lw? l)
     [(or (list (struct* pict:lw ([e "("])) lws ... (struct* pict:lw ([e ")"])))
          (list (struct* pict:lw ([e "["])) lws ... (struct* pict:lw ([e "]"])))
          (list (struct* pict:lw ([e "{"])) lws ... (struct* pict:lw ([e "}"]))))
      (cond
        [(empty? lws) null]
        [rw? (compound-rewrite (first lws) (rest lws))]
-       [else (filter-map lw->sexp lws)])]
-    [(list (struct* pict:lw ([e ""])) 'spring lw) (lw->sexp lw)]
-    [_ (filter-map lw->sexp l)]))
-
-(define lw->string
-  (compose texexpr->string lw->sexp))
+       [else (map lw->sexp lws)])]
+    [l* (map lw->sexp l*)]))
 
 ;;
 ;; language
@@ -99,16 +122,16 @@
 (define (language->sexp lang)
   (define langs-vec (compiled-lang-pict-builder evaluation))
   (define prods (vector-ref langs-vec (sub1 (vector-length langs-vec))))
-  (format "\\begin{plstx}\n~a\\end{plstx}"
-          (string-join (map production->sexp prods) "")))
+  (define lines (map production->sexp prods))
+  `(env:plstx () () "\n" ,@lines))
 
 (define (production->sexp prod)
   (match-define (cons lhs rhs) prod)
-  (format ": ~a ::= ~a \\\\\n"
-          ;; TODO this atomic rewrite should be wrapped with texexpr->string?
-          ;; so should other rewriters?
-          (string-join (map atomic-rewrite lhs) ",")
-          (string-join (map lw->string rhs) " | ")))
+  (list ":"
+        (add-between (map atomic-rewrite lhs) ",")
+        "::="
+        (add-between (map lw->sexp rhs) " | ")
+        "\\\\\n"))
 
 ;;
 ;; metafunction
@@ -117,40 +140,40 @@
 (define-syntax-rule (metafunction->sexp mf)
   (metafunction->sexp/proc (metafunction mf)))
 
-;; can we change string things to sexp things uniformly?
-
 (define (metafunction->sexp/proc mf)
   (define mf* (metafunction-proc mf))
   (define info (metafunc-proc-pict-info mf*))
   (define name (metafunc-proc-name mf*))
   (match-define (list (list lhs-ctcs rhs-ctcs _) rules) info)
-  (define lines (map (metafunction-rule->sexp name) rules))
-  (format "\\begin{align*}\n~a\\end{align*}"
-          (string-join lines "")))
+  (define lines (map (curry metafunction-rule->sexp name) rules))
+  `(env:align* () () "\n" ,@lines))
 
-(define ((metafunction-rule->sexp name) rule)
+(define (metafunction-rule->sexp name rule)
   (match-define (list lhs-lw extras rhs-lw) rule)
-  (define lhs-sexp (lw->sexp lhs-lw))
-  (define rhs-str (lw->string rhs-lw))
-  (define extra-strs (map metafunction-extra->sexp extras))
-  (format "~a(~a) &= ~a \\\\\n~a"
-          name
-          (string-join (map texexpr->string lhs-sexp) ", ")
-          rhs-str
-          (string-join extra-strs)))
+  (define lhs* (drop-right (drop (lw->sexp lhs-lw) 1) 1))
+  (list (symbol->string name)
+        "("
+        (add-between lhs* ",")
+        ")"
+        "&="
+        (lw->sexp rhs-lw)
+        "\\\\\n"
+        (map metafunction-extra->sexp extras)))
 
 (define (metafunction-extra->sexp extra)
   (match extra
     [(metafunc-extra-side-cond expr)
-     (format "  &\\qquad \\text{when } ~a \\\\\n"
-             (lw->string expr))]
+     `("&\\qquad" (text "when ")
+                  ,(lw->sexp expr)
+                  "\\\\\n")]
     [(metafunc-extra-where lhs rhs)
-     (format "  &\\qquad \\text{where } ~a = ~a \\\\\n"
-             (lw->string lhs)
-             (lw->string rhs))]
+     `("&\\qquad" (text "where ")
+                  ,(lw->sexp lhs) "=" ,(lw->sexp rhs)
+                  "\\\\\n")]
     [(metafunc-extra-fresh vars)
-     (format "  &\\qquad \\text{fresh } ~a \\\\\n"
-             (string-join vars))]))
+     `("&\\qquad" (text "fresh ")
+                  ,@vars
+                  "\\\\\n")]))
 
 ;;
 ;; reduction relation
@@ -159,45 +182,44 @@
 (define (reduction-relation->sexp rr)
   (define infos (reduction-relation-lws rr))
   (define lines (map reduction-relation-rule->sexp infos))
-  (format "\\begin{align*}\n~a\\end{align*}"
-          (string-join lines "")))
+  `(env:align* () () "\n" ,@lines))
 
 ;; TODO label
 (define (reduction-relation-rule->sexp info)
   (match-define (rule-pict-info arr lhs rhs label _ extras vars) info)
-  (define extra-strs (map reduction-relation-extra->sexp extras))
-  (format "~a &~a ~a \\\\\n~a"
-          (lw->string lhs)
-          arr
-          (lw->string rhs)
-          (string-join extra-strs)))
+  (list (lw->sexp lhs)
+        "&"
+        (atomic-rewrite arr)
+        (lw->sexp rhs)
+        "\\\\\n"
+        (map reduction-relation-extra->sexp extras)))
 
 (define (reduction-relation-extra->sexp extra)
   (match extra
     [(? pict:lw?)
-     (format "  &\\qquad \\text{when } ~a \\\\\n"
-             (lw->string extra))]
+     `("&\\qquad" (text "when ")
+                  ,(lw->sexp extra)
+                  "\\\\\n")]
     [(cons lhs rhs)
-     (format "  &\\qquad \\text{where } ~a = ~a \\\\\n"
-             (lw->string lhs)
-             (lw->string rhs))]))
+     `("&\\qquad" (text "where ")
+                  ,(lw->sexp lhs) "=" ,(lw->sexp rhs)
+                  "\\\\\n")]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; test
 
-(define ~
-  (compound-rewriter '~
-                     (λ (x y)
-                       `("\\langle" ,x "," ,y "\\rangle"))))
+(require racket/pretty)
+
+(define ~ (compound-rewriter '~ (λ (x y) `("\\langle" ,x "," ,y "\\rangle"))))
 (define α (atomic-rewriter 'α (λ _ "\\alpha")))
+(define :-> (atomic-rewriter ':-> (λ _ "\\longmapsto")))
 
 #;(parameterize ([current-rewriters (make-rewriters ~ α)])
-  (displayln (language->sexp evaluation)))
-;(pretty-print (language->sexp evaluation))
+    (displayln (texexpr->string (language->sexp evaluation))))
 #;(parameterize ([current-rewriters (make-rewriters ~ α)])
-    (displayln (metafunction->sexp δ_1)))
-(parameterize ([current-rewriters (make-rewriters ~ α)])
-  (displayln (reduction-relation->sexp ↦)))
+  (displayln (texexpr->string (metafunction->sexp δ_1))))
+(parameterize ([current-rewriters (make-rewriters ~ α :->)])
+  (displayln (texexpr->string (reduction-relation->sexp ↦))))
 
 ;;
 ;; LANGUAGE
