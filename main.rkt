@@ -59,6 +59,15 @@
  current-sans-serif-font
  current-mono-font
  current-font-size
+
+ ;; TODO
+ current-rewriters
+ define-rewriters
+ rewriters-union
+ texexpr->string
+ language->texexpr
+ metafunction->texexpr
+ reduction-relation->texexpr
  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -69,4 +78,9 @@
          "private/metas.rkt"
          "private/language.rkt"
          "private/rule-style.rkt"
-         "private/typography.rkt")
+         "private/typography.rkt"
+
+         ;; TODO
+         "private/tex-typography.rkt"
+         "private/rewriter.rkt"
+         "private/texexpr.rkt")

@@ -18,13 +18,22 @@
 (define (texexpr->string e)
   (match e
     [(? string?) e]
+    [(? symbol?) (format "\\~a" e)]
+    [(list '_ e1 e2)
+     (format "~a_{~a}" (texexpr->string e1) (texexpr->string e2))]
+    [(list '^ e1 e2)
+     (format "~a^{~a}" (texexpr->string e1) (texexpr->string e2))]
+    [(list '$ e ...) (format "$~a$" (map-join e))]
+    [(list '@ e ...) (map-join e)]
+    [(list '@@ e ...) (map-join e #:sep "")]
+    #|
     [(list (? env? cmd) (list o ...) (list m ...) e ...)
      (define env (env->string cmd))
      (format "\\begin{~a}~a~a~a\\end{~a}"
              env
              (string-join (map option->string o) "")
              (string-join (map mandatory->string m) "")
-             (string-join (map texexpr->string e) " ")
+             (map-join e)
              env)]
     [(list (? symbol? cmd) (list o ...) (list m ...))
      (format "\\~a~a~a"
@@ -36,24 +45,28 @@
      (format "\\begin{~a}~a~a\\end{~a}"
              env
              (string-join (map option->string o) "")
-             (string-join (map texexpr->string e) " ")
+             (map-join e)
              env)]
     [(list (? symbol? cmd) (list o ...) e ...)
      (format "\\~a~a{~a}"
              cmd
              (string-join (map option->string o) "")
-             (string-join (map texexpr->string e) " "))]
+             (map-join e))]
+    |#
     [(list (? env? cmd) e ...)
      (define env (env->string cmd))
      (format "\\begin{~a}~a\\end{~a}"
              env
-             (string-join (map texexpr->string e) " ")
+             (map-join e)
              env)]
     [(list (? symbol? cmd) e ...)
      (format "\\~a{~a}"
              cmd
-             (string-join (map texexpr->string e) " "))]
-    [(? list?) (string-join (map texexpr->string e) " ")]))
+             (map-join e))]
+    [_ (raise-argument-error 'texexpr->string "texexpr?" e)]))
+
+(define (map-join es #:sep [sep " "])
+  (string-join (map texexpr->string es) sep))
 
 (define (option->string e)
   (format "[~a]" (texexpr->string e)))
@@ -89,4 +102,11 @@
    "\\begin{foo}cat dog\\end{foo}"
    (texexpr->string `(foo "qux" "quux"))
    "\\foo{qux quux}"
+
+   (texexpr->string `(@ "hello" "world"))
+   "hello world"
+   (texexpr->string `(@@ "hello" "world"))
+   "helloworld"
+   (texexpr->string `($ "1 + 1"))
+   "\\[1 + 1\\]"
    ))
