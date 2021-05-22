@@ -84,6 +84,7 @@
   (apply set-union (set) nts))
 
 (define current-nonterminals (make-parameter (set)))
+(define non-tt? (make-parameter #f))
 
 (define (language-fallback-atomic-rewriter x)
   (define sym (if (string? x) (string->symbol x) x))
@@ -94,9 +95,11 @@
      (define sub* (string->symbol sub))
      (if (eq? sub* '′)
          `(@@ ,(atomic-rewrite base*) "'")
-         `(_ ,(atomic-rewrite base*) ,(atomic-rewrite sub*)))]
+         `(_ ,(atomic-rewrite base*)
+             ,(parameterize ([non-tt? #t])
+                (atomic-rewrite sub*))))]
     [_
-     (if (set-member? (current-nonterminals) sym)
+     (if (or (set-member? (current-nonterminals) sym) (non-tt?))
          str
          `(texttt ,str))]))
 
