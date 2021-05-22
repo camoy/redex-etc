@@ -10,6 +10,7 @@
          define-rewriters
          rewriters-union
          current-rewriters
+         !
          current-fallback-compound-rewriter
          default-fallback-compound-rewriter
          compound-rewrite
@@ -32,7 +33,8 @@
          racket/hash
          racket/match
          racket/list
-         redex/pict)
+         redex/pict
+         #;redex/reduction-semantics)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data (rewriter)
@@ -98,6 +100,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; compound rewriter
 
+(define (rewriter-pattern x) x)
+
+(define-syntax ! (make-rename-transformer #'side-condition))
+
 (define (default-fallback-compound-rewriter l mf?)
   `(@@ "(" (@ ,@l) ")"))
 
@@ -110,12 +116,25 @@
     [(and unq? (not (ignore-unquote?))) (unquote-rewrite head args)]
     [else
      (define compounds (rewriters-compounds (current-rewriters)))
-     (define proc (hash-ref compounds (lw-e head) (λ _ #f)))
-     (if proc
-         (apply proc (map lw->texexpr args))
-         ((current-fallback-compound-rewriter)
-          (list->texexpr (cons head args) #:rewrite? #f)
-          mf?))]))
+     (define head* (lw-e head))
+     (cond
+       [(and (eq? head* '!)
+             (hash-ref compounds (extract-symbol (second args)) (λ _ #f)))
+        =>
+        (λ (proc)
+          (proc (lw->texexpr (first args))))]
+       [(hash-ref compounds head* (λ _ #f))
+        =>
+        (λ (proc) (apply proc (map lw->texexpr args)))]
+       [else
+        ((current-fallback-compound-rewriter)
+         (list->texexpr (cons head args) #:rewrite? #f)
+         mf?)])]))
+
+(define (extract-symbol x)
+  (match (lw-e x)
+    [(list (struct* lw ([e "'"])) 'spring (struct* lw ([e e]))) e]
+    [_ #f]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; atomic rewriter
