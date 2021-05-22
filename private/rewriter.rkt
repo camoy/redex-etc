@@ -10,6 +10,7 @@
          define-rewriters
          rewriters-union
          current-rewriters
+         current-lws
          !
          current-fallback-compound-rewriter
          default-fallback-compound-rewriter
@@ -110,26 +111,29 @@
 (define current-fallback-compound-rewriter
   (make-parameter default-fallback-compound-rewriter))
 
+(define current-lws (make-parameter #f))
+
 (define (compound-rewrite head args)
   (match-define (struct* lw ([unq? unq?] [metafunction? mf?])) head)
-  (cond
-    [(and unq? (not (ignore-unquote?))) (unquote-rewrite head args)]
-    [else
-     (define compounds (rewriters-compounds (current-rewriters)))
-     (define head* (lw-e head))
-     (cond
-       [(and (eq? head* '!)
-             (hash-ref compounds (extract-symbol (second args)) (λ _ #f)))
-        =>
-        (λ (proc)
-          (proc (lw->texexpr (first args))))]
-       [(hash-ref compounds head* (λ _ #f))
-        =>
-        (λ (proc) (apply proc (map lw->texexpr args)))]
-       [else
-        ((current-fallback-compound-rewriter)
-         (list->texexpr (cons head args) #:rewrite? #f)
-         mf?)])]))
+  (parameterize ([current-lws args])
+    (cond
+      [(and unq? (not (ignore-unquote?))) (unquote-rewrite head args)]
+      [else
+       (define compounds (rewriters-compounds (current-rewriters)))
+       (define head* (lw-e head))
+       (cond
+         [(and (eq? head* '!)
+               (hash-ref compounds (extract-symbol (second args)) (λ _ #f)))
+          =>
+          (λ (proc)
+            (proc (lw->texexpr (first args))))]
+         [(hash-ref compounds head* (λ _ #f))
+          =>
+          (λ (proc) (apply proc (map lw->texexpr args)))]
+         [else
+          ((current-fallback-compound-rewriter)
+           (list->texexpr (cons head args) #:rewrite? #f)
+           mf?)])])))
 
 (define (extract-symbol x)
   (match (lw-e x)

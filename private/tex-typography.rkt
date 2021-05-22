@@ -14,6 +14,7 @@
          racket/list
          racket/match
          racket/set
+         racket/string
          (only-in redex/pict lw? lw)
          redex/private/judgment-form
          redex/private/lang-struct
@@ -25,8 +26,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; language
 
-(define (language->texexpr lang #:sets [sets '()] #:set-only [set-only '()])
-  (define set-hash (apply hash sets))
+(define (language->texexpr lang
+                           #:extends [extends #f]
+                           #:sets [set-hash (hash)]
+                           #:set-only [set-only '()])
+  (define name (compiled-lang-language-name lang))
   (define set-only-set (list->set set-only))
   (define prods (lang->productions lang))
   (define nts (lang->nonterminals lang))
@@ -37,7 +41,10 @@
                    [current-fallback-compound-rewriter
                     language-fallback-compound-rewriter])
       (filter-map (curry production->texexpr set-hash set-only-set) prods)))
-  `(env:plstx "\n" ,@lines))
+  `(@@ (fbox ,(string-titlecase (symbol->string name)))
+       ,(if extends (format " extends ~a" extends) "")
+       "\n"
+       (env:plstx "\n" ,@lines)))
 
 (define (production->texexpr set-hash set-only-set prod)
   (match-define (cons lhs rhs) prod)
@@ -123,21 +130,28 @@
   (define mf* (metafunction-proc mf))
   (define nts (lang->nonterminals (metafunc-proc-lang mf*)))
   (define info (metafunc-proc-pict-info mf*))
-  (define name (metafunc-proc-name mf*))
+  (define name (atomic-rewrite (metafunc-proc-name mf*)))
   (match-define (list (list lhs-ctcs rhs-ctcs _) rules) info)
-  (define lines
-    (parameterize ([current-nonterminals nts]
-                   [current-fallback-atomic-rewriter
-                    language-fallback-atomic-rewriter]
-                   [current-fallback-compound-rewriter
-                    language-fallback-compound-rewriter])
-      (map (curry metafunction-rule->texexpr name) rules)))
-  `(env:align* "\n" ,@lines))
+  (parameterize ([current-nonterminals nts]
+                 [current-fallback-atomic-rewriter
+                  language-fallback-atomic-rewriter]
+                 [current-fallback-compound-rewriter
+                  language-fallback-compound-rewriter])
+    (define contract (metafunction-ctc name lhs-ctcs rhs-ctcs))
+    (define lines (map (curry metafunction-rule->texexpr name) rules))
+    `(@@ (fbox ,contract)
+         "\n"
+         (env:align* "\n" ,@lines))))
+
+(define (metafunction-ctc name lhs-ctcs rhs-ctcs)
+  (define lhs-ctcs* (list->texexpr lhs-ctcs))
+  (define rhs-ctcs* (list->texexpr rhs-ctcs))
+  `($ ,name ":" ,@(add-between lhs-ctcs* 'times) to ,@rhs-ctcs*))
 
 (define (metafunction-rule->texexpr name rule)
   (match-define (list (struct* lw ([e lhs-e])) extras rhs-lw) rule)
   (define lhs* (list->texexpr lhs-e #:rewrite? #f))
-  `(@ (@@ ,(atomic-rewrite name)
+  `(@ (@@ ,name
           "("
           ,@(add-between lhs* ", ")
           ")")
@@ -171,14 +185,24 @@
   (define lang (reduction-relation-lang rr))
   (define infos (reduction-relation-lws rr))
   (define nts (lang->nonterminals lang))
-  (define lines
-    (parameterize ([current-nonterminals nts]
-                   [current-fallback-atomic-rewriter
-                    language-fallback-atomic-rewriter]
-                   [current-fallback-compound-rewriter
-                    language-fallback-compound-rewriter])
-      (map reduction-relation-rule->texexpr infos)))
-  `(env:align* "\n" ,@lines))
+  (define lhs-ctc (reduction-relation-domain-pat rr))
+  (define rhs-ctc (reduction-relation-codomain-pat rr))
+  (parameterize ([current-nonterminals nts]
+                 [current-fallback-atomic-rewriter
+                  language-fallback-atomic-rewriter]
+                 [current-fallback-compound-rewriter
+                  language-fallback-compound-rewriter])
+    (define arr (rule-pict-info-arrow (first infos)))
+    (define lines (map reduction-relation-rule->texexpr infos))
+    (define contract (reduction-relation-ctc arr lhs-ctc rhs-ctc))
+    `(@@ (fbox ,contract)
+         "\n"
+         (env:align* "\n" ,@lines))))
+
+(define (reduction-relation-ctc arr lhs rhs)
+  `($ ,(atomic-rewrite (second lhs))
+      ,(atomic-rewrite arr)
+      ,(atomic-rewrite (second rhs))))
 
 ;; TODO label
 (define (reduction-relation-rule->texexpr info)
@@ -187,6 +211,7 @@
       "&"
       ,(atomic-rewrite arr)
       ,(lw->texexpr rhs)
+      "&&" (textsc ,(symbol->string label))
       "\\\\\n"
       ,@(map reduction-relation-extra->texexpr extras)))
 
@@ -196,9 +221,9 @@
      `(@ (@@ "&" (mathbin (phantom "=")))
          (text "when ")
          ,(lw->texexpr extra)
-         "\\\\\n")]
+         "&& \\\\\n")]
     [(cons lhs rhs)
      `(@ (@@ "&" (mathbin (phantom "=")))
          (text "where ")
          ,(lw->texexpr lhs) "=" ,(lw->texexpr rhs)
-         "\\\\\n")]))
+         "&& \\\\\n")]))
