@@ -35,7 +35,7 @@
          racket/match
          racket/list
          redex/pict
-         #;redex/reduction-semantics)
+         redex/reduction-semantics)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data (rewriter)
@@ -122,7 +122,7 @@
        (define compounds (rewriters-compounds (current-rewriters)))
        (define head* (lw-e head))
        (cond
-         [(and (eq? head* '!)
+         [(and (eq? head* 'side-condition)
                (hash-ref compounds (extract-symbol (second args)) (λ _ #f)))
           =>
           (λ (proc)
@@ -200,9 +200,10 @@
     [(? list? e) (list->texexpr e)]))
 
 (define (list->texexpr l #:rewrite? [rw? #t])
-  (define lws (list->grouped l))
+  (define l* (filter (λ (x) (not (eq? x 'spring))) l))
+  (define lws (list->grouped l*))
   (cond
-    [(not lws) (map lw->texexpr l)]
+    [(not lws) (map lw->texexpr l*)]
     [(empty? lws) null]
     [rw? (compound-rewrite (first lws) (rest lws))]
     [else (map lw->texexpr lws)]))
@@ -213,6 +214,6 @@
          (list (struct* lw ([e "["])) lws ... (struct* lw ([e "]"])))
          (list (struct* lw ([e "{"])) lws ... (struct* lw ([e "}"]))))
      lws]
-    [(list (struct* lw ([e ""])) 'spring (struct* lw ([e (? list? e)])))
+    [(list (struct* lw ([e ""])) (struct* lw ([e (? list? e)])))
      (list->grouped e)]
     [_ #f]))

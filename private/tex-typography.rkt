@@ -1,4 +1,4 @@
-#lang racket/base
+#lang errortrace racket/base
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; provide
@@ -15,7 +15,7 @@
          racket/match
          racket/set
          racket/string
-         (only-in redex/pict lw? lw)
+         (only-in redex/pict lw? lw lw-e)
          redex/private/judgment-form
          redex/private/lang-struct
          redex/private/reduction-semantics
@@ -31,6 +31,7 @@
                            #:sets [set-hash (hash)]
                            #:set-only [set-only '()])
   (define name (compiled-lang-language-name lang))
+  (define extended-name (and extends (compiled-lang-language-name extends)))
   (define set-only-set (list->set set-only))
   (define prods (lang->productions lang))
   (define nts (lang->nonterminals lang))
@@ -41,8 +42,8 @@
                    [current-fallback-compound-rewriter
                     language-fallback-compound-rewriter])
       (filter-map (curry production->texexpr set-hash set-only-set) prods)))
-  `(@@ (fbox ,(string-titlecase (symbol->string name)))
-       ,(if extends (format " extends ~a" extends) "")
+  `(@@ (fbox ,(format "~a Syntax" (string-titlecase (symbol->string name))))
+       ,(if extended-name (format " extends ~a Syntax" extended-name) "")
        "\n"
        (env:plstx "\n" ,@lines)))
 
@@ -197,33 +198,85 @@
     (define contract (reduction-relation-ctc arr lhs-ctc rhs-ctc))
     `(@@ (fbox ,contract)
          "\n"
-         (env:align* "\n" ,@lines))))
+         footnotesize
+         "\n"
+         (env:align* "\n" ,@(add-between lines "\\\\\n") "\n"))))
 
 (define (reduction-relation-ctc arr lhs rhs)
   `($ ,(atomic-rewrite (second lhs))
       ,(atomic-rewrite arr)
       ,(atomic-rewrite (second rhs))))
 
+(define (newline? clauses)
+  (and (not (empty? clauses))
+       (match (first clauses)
+         [(struct* lw ([e (list _ _ (struct* lw ([e 'newline])))])) #t]
+         [_ #f])))
+
 ;; TODO label
 (define (reduction-relation-rule->texexpr info)
   (match-define (rule-pict-info arr lhs rhs label _ extras vars) info)
-  `(@ ,(lw->texexpr lhs)
+  (define arr* (atomic-rewrite arr))
+  (define nl? (newline? extras))
+  (define extras*
+    (if nl?
+        (map (curry reduction-relation-extra->texexpr arr*) (rest extras))
+        (map (curry reduction-relation-extra->texexpr arr*) extras)))
+  #;`(@ (textsc ,(symbol->string label))
+      "&&"
+      ,(lw->texexpr lhs)
       "&"
-      ,(atomic-rewrite arr)
+      ,arr*
       ,(lw->texexpr rhs)
-      "&&" (textsc ,(symbol->string label))
-      "\\\\\n"
-      ,@(map reduction-relation-extra->texexpr extras)))
+      ,@(if (empty? extras) '() '((text " if ")))
+      ,@(add-between extras* ", "))
+  #;`(@ (textsc ,(symbol->string label))
+      "&&"
+      ,(lw->texexpr lhs)
+      "&"
+      ,arr*
+      ,(lw->texexpr rhs)
+      ,@(if (empty? extras)
+            '()
+            `("\\\\\n" "&&&" (mathbin (phantom ,arr)) (text "if ")))
+      ,@(add-between extras* ", ")
+      "\\\\\n")
+  #;`(@ (textsc ,(symbol->string label))
+      "&&"
+      ,(lw->texexpr lhs)
+      "&"
+      ,arr*
+      ,(lw->texexpr rhs)
+      "&"
+      ,@(if (empty? extras) '() '((text "if ") "&"))
+      ,@(add-between extras* "\\\\\n&&&&&")
+      "\\\\\n")
+  (if nl?
+      `(@ ,(lw->texexpr lhs)
+          "&"
+          ,arr*
+          ,(lw->texexpr rhs)
+          "&&" (textsc ,(symbol->string label))
+          "\\\\\n" "&" (mathbin (phantom ,arr)) (text "if ")
+          ,@(add-between extras* ","))
+      `(@ ,(lw->texexpr lhs)
+          "&"
+          ,arr*
+          ,(lw->texexpr rhs)
+          ,(if (empty? extras*) "" `(text " if "))
+          ,@(add-between extras* ",")
+          "&&" (textsc ,(symbol->string label)))))
 
-(define (reduction-relation-extra->texexpr extra)
+(define (reduction-relation-extra->texexpr arr extra)
   (match extra
     [(? lw?)
-     `(@ (@@ "&" (mathbin (phantom "=")))
+     (lw->texexpr extra)
+     #;`(@ (@@ "&" (mathbin (phantom ,arr)))
          (text "when ")
-         ,(lw->texexpr extra)
-         "&& \\\\\n")]
+         ,(lw->texexpr extra))]
     [(cons lhs rhs)
-     `(@ (@@ "&" (mathbin (phantom "=")))
+     `(@@ ,(lw->texexpr lhs) "=" ,(lw->texexpr rhs))
+     #;`(@ (@@ "&" (mathbin (phantom ,arr)))
          (text "where ")
-         ,(lw->texexpr lhs) "=" ,(lw->texexpr rhs)
-         "&& \\\\\n")]))
+         ,(lw->texexpr lhs) "=" ,(lw->texexpr rhs))]
+    [_ #f]))
