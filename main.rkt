@@ -27,6 +27,9 @@
  nt-set
  nt-set?
 
+ ;; `require-typed-primitives.rkt`
+ require-typed-primitives
+
  ;; `rule-style.rkt`
  current-rule-label?
  current-compact-threshold
@@ -61,6 +64,8 @@
  current-font-size
 
  ;; TODO
+ current-lws
+ !
  current-rewriters
  define-rewriters
  rewriters-union
@@ -77,6 +82,7 @@
          "private/macros.rkt"
          "private/metas.rkt"
          "private/language.rkt"
+         "private/require-typed-primitives.rkt"
          "private/rule-style.rkt"
          "private/typography.rkt"
 
