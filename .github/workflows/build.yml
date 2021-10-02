@@ -14,7 +14,7 @@ jobs:
           architecture: 'x64'
           distribution: 'full'
           variant: 'regular'
-          version: '8.1'
+          version: '8.2'
       - run: raco pkg install --auto --no-setup --skip-installed
       - run: raco setup --fast-clean redex-etc
       - run: raco setup redex-etc
