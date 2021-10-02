@@ -1,4 +1,4 @@
-#lang errortrace racket/base
+#lang racket/base
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; provide
@@ -29,10 +29,12 @@
 (define (language->texexpr lang
                            #:extends [extends #f]
                            #:sets [set-hash (hash)]
-                           #:set-only [set-only '()])
+                           #:set-only [set-only-hash (hash)])
   (define name (compiled-lang-language-name lang))
-  (define extended-name (and extends (compiled-lang-language-name extends)))
-  (define set-only-set (list->set set-only))
+  (define extended-name
+    (and extends
+         (string-titlecase
+          (symbol->string (compiled-lang-language-name extends)))))
   (define prods (lang->productions lang))
   (define nts (lang->nonterminals lang))
   (define lines
@@ -41,32 +43,37 @@
                     language-fallback-atomic-rewriter]
                    [current-fallback-compound-rewriter
                     language-fallback-compound-rewriter])
-      (filter-map (curry production->texexpr set-hash set-only-set) prods)))
-  `(@@ (fbox ,(format "~a Syntax" (string-titlecase (symbol->string name))))
+      (filter-map (curry production->texexpr set-hash set-only-hash) prods)))
+  `(@@ footnotesize
+       "\n"
+       (fbox ,(format "~a Syntax" (string-titlecase (symbol->string name))))
        ,(if extended-name (format " extends ~a Syntax" extended-name) "")
        "\n"
        (env:plstx "\n" ,@lines)))
 
-(define (production->texexpr set-hash set-only-set prod)
+(define (production->texexpr set-hash set-only-hash prod)
   (match-define (cons lhs rhs) prod)
   (define set-name
     (for*/first ([sym (in-list lhs)]
                  [set-name (in-value (hash-ref set-hash sym (λ _ #f)))]
                  #:when set-name)
       set-name))
-  (define set-only?
-    (for/or ([sym (in-list lhs)])
-      (set-member? set-only-set sym)))
+  (define set-only
+    (for/first ([sym (in-list lhs)]
+             #:when (hash-has-key? set-only-hash sym))
+      (or (hash-ref set-only-hash sym) 'none)))
   (define lhs* (add-between (map atomic-rewrite lhs) ","))
   (define set-name* (and set-name (format "\\in \\textsf{~a}" set-name)))
   (define rhs* (add-between (map lw->texexpr rhs) " | "))
   (cond
     [(not set-name*) #f]
-    [set-only? (set-only->texexpr lhs* set-name*)]
+    [set-only (set-only->texexpr lhs* set-name* set-only)]
     [else (with-rhs->texexpr lhs* set-name* rhs*)]))
 
-(define (set-only->texexpr lhs set-name)
-  `(@ "*:" ,@lhs ,set-name "[ ]  \\\\\n"))
+(define (set-only->texexpr lhs set-name set-only)
+  (if (eq? set-only 'none)
+      `(@ "*:" ,@lhs ,set-name "[ ]  \\\\\n")
+      `(@ "*:" ,@lhs ,set-name "[=]" ,set-only "\\\\\n")))
 
 (define (with-rhs->texexpr lhs set-name rhs)
   `(@ ":" ,@lhs ,set-name "::=" ,@rhs "\\\\\n"))
@@ -140,7 +147,9 @@
                   language-fallback-compound-rewriter])
     (define contract (metafunction-ctc name lhs-ctcs rhs-ctcs))
     (define lines (map (curry metafunction-rule->texexpr name) rules))
-    `(@@ (fbox ,contract)
+    `(@@ footnotesize
+         "\n"
+         (fbox ,contract)
          "\n"
          (env:align* "\n" ,@lines))))
 
@@ -196,9 +205,9 @@
     (define arr (rule-pict-info-arrow (first infos)))
     (define lines (map reduction-relation-rule->texexpr infos))
     (define contract (reduction-relation-ctc arr lhs-ctc rhs-ctc))
-    `(@@ (fbox ,contract)
+    `(@@ footnotesize
          "\n"
-         footnotesize
+         (fbox ,contract)
          "\n"
          (env:align* "\n" ,@(add-between lines "\\\\\n") "\n"))))
 

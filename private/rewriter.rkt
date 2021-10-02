@@ -129,7 +129,8 @@
             (proc (lw->texexpr (first args))))]
          [(hash-ref compounds head* (λ _ #f))
           =>
-          (λ (proc) (apply proc (map lw->texexpr args)))]
+          (λ (proc)
+            (apply proc (map lw->texexpr args)))]
          [else
           ((current-fallback-compound-rewriter)
            (list->texexpr (cons head args) #:rewrite? #f)
