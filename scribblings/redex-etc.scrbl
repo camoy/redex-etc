@@ -25,7 +25,7 @@
 
 @margin-note{
 This library is under development;
-compatibility will not be maintained.
+compatibility may not be maintained.
 }
 
 This package implements miscellaneous
@@ -115,6 +115,99 @@ in our examples.
     (not-match? Λ x y)]
 }
 
+@margin-note{
+Thanks to Andrew Wagner for suggesting this feature.
+}
+
+@defform[(require-typed-primitives lang reduce-id type-id
+           maybe-convert-type
+           require-spec ...)
+         #:grammar
+         [(maybe-convert-type (code:line)
+                              (code:line #:convert-type convert-type-id))]]{
+  Uses the given Typed Racket modules to define the reduction
+  and typing of primitive operations in a typed Redex language.
+  When specified, the type conversion function determines how
+  Typed Racket types are converted to Redex terms. By default,
+  it uses the default printed representation of types.
+
+  @examples[#:eval evaluator
+    (require (for-syntax racket/base
+                         racket/match
+                         typed-racket/types/base-abbrev
+                         typed-racket/types/numeric-tower
+                         typed-racket/rep/type-rep
+                         typed-racket/rep/values-rep))
+
+    (define-language Λτ
+      [e ::= x v (e e ...)]
+      [v ::= integer boolean o (λ ([x τ] ...) e)]
+      [o ::= even? odd?]
+      [x ::= variable-not-otherwise-mentioned]
+      [E ::= hole (v ... E e ...)]
+
+      [τ ::= Integer Boolean (-> τ τ ...)]
+      [Γ ::= ([x τ] ...)]
+
+      #:binding-forms
+      (λ (x ...) e #:refers-to (shadow x ...)))
+
+    (define-syntax (convert-type ty)
+      (let go ([ty ty])
+        (match ty
+          [(== -Boolean) 'Boolean]
+          [(== -Integer) 'Integer]
+          [(Fun: (list (Arrow: doms _ _ (Values: (list (Result: rng _ _))))))
+           `(-> ,@(map go doms) ,(go rng))])))
+
+    (require-typed-primitives
+     Λτ δ Δ
+     #:convert-type convert-type
+     (only-in typed/racket/base even? odd?))
+
+    (define-judgment-form Λτ
+      #:mode (⊢ I I I O)
+      #:contract (⊢ Γ e : τ)
+      [(⊢ Γ x : τ)
+       (where τ (lookup Γ x))]
+      [(⊢ Γ integer : Integer)]
+      [(⊢ Γ boolean : Boolean)]
+      [(⊢ Γ o : (Δ o))]
+
+      [(⊢ (ext Γ [x τ_a] ...) e : τ_r)
+       --------------------------------------------
+       (⊢ Γ (λ ([x τ_a] ...) e) : (-> τ_a ... τ_r))]
+
+      [(⊢ Γ e_f : (-> τ_a ... τ_r))
+       (⊢ Γ e_v : τ_a) ...
+       ----------------------------
+       (⊢ Γ (e_f e_v ...) : τ_r)])
+
+    (define ↦v
+      (reduction-relation
+       Λτ
+       [--> (in-hole E ((λ ([x τ] ..._a) e) v ..._a))
+            (in-hole E (substitute* e [x v] ...))
+            βv]
+
+       [--> (in-hole E (o v ...))
+            (in-hole E (δ (o v ...)))
+            δ]))
+
+    (define (program? e)
+      (judgment-holds (⊢ () ,e : τ)))
+
+    (define (answer? e)
+      (redex-match? Λτ v e))
+
+    (define ⇓
+      (make-eval ↦v
+                 #:program? program?
+                 #:answer? answer?))
+
+    (⇓ (term (even? 42)))]
+}
+
 @section{Functions}
 
 @defproc[(make-eval [rr reduction-relation?]
@@ -153,6 +246,7 @@ in our examples.
     (eval:error (⇓ (term ((λ (x) ((x x) x)) (λ (y) ((y y) y))))))]
 }
 
+@;{
 @section{Typography}
 
 Redex has the ability to typeset your model
@@ -342,4 +436,5 @@ with my preferences.
             unquote-rewriters
             (plistof symbol? (-> lw? lw?))])]{
   The rewriters to use when rendering stylish.
+}
 }
