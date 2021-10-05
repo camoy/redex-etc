@@ -126,10 +126,9 @@ Thanks to Andrew Wagner for suggesting this feature.
          [(maybe-convert-type (code:line)
                               (code:line #:convert-type convert-type-id))]]{
   Uses the given Typed Racket modules to define the reduction
-  and typing of primitive operations in a typed Redex language.
-  When specified, the type conversion function determines how
-  Typed Racket types are converted to Redex terms. By default,
-  it uses the default printed representation of types.
+  and typing of primitive operations. When specified, the type conversion
+  procedure is given a datum representing the Typed Racket type, and is
+  expected to return an equivalent type as a Redex term.
 
   @examples[#:eval evaluator
     (require (for-syntax racket/base
@@ -152,17 +151,8 @@ Thanks to Andrew Wagner for suggesting this feature.
       #:binding-forms
       (λ (x ...) e #:refers-to (shadow x ...)))
 
-    (define-syntax (convert-type ty)
-      (let go ([ty ty])
-        (match ty
-          [(== -Boolean) 'Boolean]
-          [(== -Integer) 'Integer]
-          [(Fun: (list (Arrow: doms _ _ (Values: (list (Result: rng _ _))))))
-           `(-> ,@(map go doms) ,(go rng))])))
-
     (require-typed-primitives
      Λτ δ Δ
-     #:convert-type convert-type
      (only-in typed/racket/base even? odd?))
 
     (define-judgment-form Λτ

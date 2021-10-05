@@ -10,13 +10,17 @@
 
 (require (for-syntax racket/base
                      racket/match
+                     racket/set
                      racket/sequence
+                     racket/promise
                      racket/require-transform
                      typed-racket/typecheck/possible-domains
                      typed-racket/types/generalize
                      typed-racket/env/env-req
                      typed-racket/env/global-env
                      typed-racket/standard-inits
+                     typed-racket/utils/tc-utils
+                     typed-racket/tc-setup
                      syntax/strip-context
                      syntax/parse
                      syntax/modresolve)
@@ -26,6 +30,10 @@
 ;; helpers
 
 (begin-for-syntax
+  ;; Since Redex itself uses Typed Racket internally, it registers a few type
+  ;; aliases which we have to remove from the alias list.
+  (define REDEX-TYPES '(Pattern Term Env TEnv Tag Tag))
+
   ;; See: https://github.com/racket/typed-racket/issues/1144
   (define baddies
     '(exn:srclocs?
@@ -48,16 +56,13 @@
   ;; Initializes the given typed modules. Importing `typed/racket` or
   ;; `typed/racket/base` causes a `do-standard-inits` instead.
   (define (add-import-mods! resolved-srcs)
-    (define contains-tr?
-      (for/or ([resolved-src (in-list resolved-srcs)])
-        (define tr?
-          (or (equal? tr resolved-src)
-              (equal? tr-base resolved-src)))
-        (unless tr? (add-mod! resolved-src))
-        tr?))
-    (if contains-tr?
-        (do-standard-inits)
-        (do-requires)))
+    (for ([resolved-src (in-list resolved-srcs)]
+          #:when (not (or (equal? tr resolved-src)
+                          (equal? tr-base resolved-src))))
+      (add-mod! resolved-src))
+    (do-standard-inits)
+    (define names (remove-redex-aliases (force (init-current-type-names))))
+    (current-type-names (lazy names)))
 
   ;; Syntax → [Listof Import] [Listof Resolved-Module-Path]
   ;; Given a syntax contain require specs, returns the corresponding
@@ -92,14 +97,21 @@
                   (cons name (generalize (cleanup-type ty))))))))))
     (for*/hash ([import (in-list imports)]
                 [src-sym (in-value (import-src-sym import))]
-                #:when (hash-has-key? sym-type-ht src-sym))
+                #:when (hash-has-key? sym-type-ht src-sym)
+                #:when (zero? (import-mode import)))
       (values import (hash-ref sym-type-ht src-sym))))
+
+  ;; AList → AList
+  ;; Removes Redex aliases from given alias association list.
+  (define (remove-redex-aliases aliases)
+    (filter (λ (alias)
+              (not (set-member? REDEX-TYPES (car alias))))
+            aliases))
 
   ;; Type → Datum
   ;; Default conversion between Typed Racket types and a datum.
   (define (type->datum ty)
-    (read (open-input-string (format "~a" ty))))
-  )
+    (read (open-input-string (format "~a" ty)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; macro
@@ -117,7 +129,7 @@
      #:do [(define convert-type
              (if (attribute ?convert-type)
                  (syntax-local-value #'?convert-type (λ () #f))
-                 type->datum))]
+                 values))]
      #:fail-when
      (and (not convert-type) #'?convert-type)
      "not a transformer binding"
@@ -129,7 +141,8 @@
      (for/list ([import (in-list imports)]
                 #:when (hash-has-key? type-map import))
        (define local-id (import-local-id import))
-       (list local-id (convert-type (hash-ref type-map import))))
+       (define type-sexp (convert-type (type->datum (hash-ref type-map import))))
+       (list local-id type-sexp))
      #'(begin
          (require ?req-spec ...)
 
@@ -167,20 +180,10 @@
     #:binding-forms
     (λ (x ...) e #:refers-to (shadow x ...)))
 
-  ;; Converts a Typed Racket type to a Redex-suitable representation.
-  (define-syntax (convert-type ty)
-    (let go ([ty ty])
-      (match ty
-        [(== -Boolean) 'Boolean]
-        [(== -Integer) 'Integer]
-        [(Fun: (list (Arrow: doms _ _ (Values: (list (Result: rng _ _))))))
-         `(-> ,@(map go doms) ,(go rng))])))
-
   ;; Here, we list all of the primitives we want.
   (require-typed-primitives
    Λ δ Δ
-   #:convert-type convert-type
-   (only-in typed/racket/base even? odd?))
+   (only-in typed/racket even? odd?))
 
   ;; The usual typing judgment. The types of primitives consult Δ. Some of the
   ;; helper metafunctions (`lookup` and `ext`) come from `redex-etc`.
