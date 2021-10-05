@@ -128,16 +128,10 @@ Thanks to Andrew Wagner for suggesting this feature.
   Uses the given Typed Racket modules to define the reduction
   and typing of primitive operations. When specified, the type conversion
   procedure is given a datum representing the Typed Racket type, and is
-  expected to return an equivalent type as a Redex term.
+  expected to return an equivalent type as a Redex term. Note, that you must
+  define the type conversion function with @racket[define-syntax].
 
   @examples[#:eval evaluator
-    (require (for-syntax racket/base
-                         racket/match
-                         typed-racket/types/base-abbrev
-                         typed-racket/types/numeric-tower
-                         typed-racket/rep/type-rep
-                         typed-racket/rep/values-rep))
-
     (define-language Λτ
       [e ::= x v (e e ...)]
       [v ::= integer boolean o (λ ([x τ] ...) e)]
