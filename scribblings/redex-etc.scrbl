@@ -5,6 +5,7 @@
                     redex-etc
                     racket/base
                     racket/math
+                    racket/match
                     racket/contract
                     racket/function
                     redex/reduction-semantics
@@ -14,7 +15,9 @@
 
 @(define evaluator
   (make-base-eval
-    '(require redex/reduction-semantics
+    '(require (for-syntax racket/base
+                          racket/match)
+              redex/reduction-semantics
               redex/pict
               redex-etc)))
 
@@ -115,41 +118,52 @@ in our examples.
     (not-match? Λ x y)]
 }
 
-@margin-note{
-Thanks to Andrew Wagner for suggesting this feature.
-}
-
 @defform[(require-typed-primitives lang reduce-id type-id
            maybe-convert-type
            require-spec ...)
          #:grammar
          [(maybe-convert-type (code:line)
                               (code:line #:convert-type convert-type-id))]]{
+  @margin-note{
+  Thanks to Andrew Wagner for suggesting this feature.
+  }
+
   Uses the given Typed Racket modules to define the reduction
   and typing of primitive operations. When specified, the type conversion
   procedure is given a datum representing the Typed Racket type, and is
   expected to return an equivalent type as a Redex term. Note, that you must
   define the type conversion function with @racket[define-syntax].
 
-  @examples[#:eval evaluator
-    (define-language Λτ
-      [e ::= x v (e e ...)]
-      [v ::= integer boolean o (λ ([x τ] ...) e)]
-      [o ::= even? odd?]
-      [x ::= variable-not-otherwise-mentioned]
+  In the following, we import @racket[even?], @racket[odd?], and
+  @racket[add1] from Typed Racket. Since @racket[add1] takes and
+  returns arbitrary numbers, not just integers, we provide a type
+  conversion function to handle the number type. This is because
+  the object language only has integers.
+
+  @examples[#:eval evaluator #:label #f #:no-result
+    (define-language Ω
+      [e ::= v (e e ...)]
+      [v ::= integer boolean o]
+      [o ::= even? odd? add1]
       [E ::= hole (v ... E e ...)]
 
       [τ ::= Integer Boolean (-> τ τ ...)]
-      [Γ ::= ([x τ] ...)]
+      [Γ ::= ([x τ] ...)])
 
-      #:binding-forms
-      (λ (x ...) e #:refers-to (shadow x ...)))
+    (define-syntax (convert-type type)
+      (let go ([type type])
+        (match type
+          ['Boolean 'Boolean]
+          ['Integer 'Integer]
+          ['Number 'Integer]
+          [`(-> ,x ...) `(-> ,@(map go x))])))
 
     (require-typed-primitives
-     Λτ δ Δ
-     (only-in typed/racket/base even? odd?))
+     Ω δ Δ
+     #:convert-type convert-type
+     (only-in typed/racket/base add1 even? odd?))
 
-    (define-judgment-form Λτ
+    (define-judgment-form Ω
       #:mode (⊢ I I I O)
       #:contract (⊢ Γ e : τ)
       [(⊢ Γ x : τ)
@@ -157,39 +171,26 @@ Thanks to Andrew Wagner for suggesting this feature.
       [(⊢ Γ integer : Integer)]
       [(⊢ Γ boolean : Boolean)]
       [(⊢ Γ o : (Δ o))]
-
-      [(⊢ (ext Γ [x τ_a] ...) e : τ_r)
-       --------------------------------------------
-       (⊢ Γ (λ ([x τ_a] ...) e) : (-> τ_a ... τ_r))]
-
       [(⊢ Γ e_f : (-> τ_a ... τ_r))
        (⊢ Γ e_v : τ_a) ...
        ----------------------------
        (⊢ Γ (e_f e_v ...) : τ_r)])
 
-    (define ↦v
+    (define ↦
       (reduction-relation
-       Λτ
-       [--> (in-hole E ((λ ([x τ] ..._a) e) v ..._a))
-            (in-hole E (substitute* e [x v] ...))
-            βv]
-
+       Ω
        [--> (in-hole E (o v ...))
             (in-hole E (δ (o v ...)))
-            δ]))
+            δ]))]
 
-    (define (program? e)
-      (judgment-holds (⊢ () ,e : τ)))
+  Given those definitions, we can now use those primitive operations.
 
-    (define (answer? e)
-      (redex-match? Λτ v e))
-
-    (define ⇓
-      (make-eval ↦v
-                 #:program? program?
-                 #:answer? answer?))
-
-    (⇓ (term (even? 42)))]
+  @examples[#:eval evaluator
+    (judgment-holds (⊢ () (even? 42) : Boolean))
+    (judgment-holds (⊢ () add1 : (-> Integer Integer)))
+    (apply-reduction-relation ↦ (term (even? 42)))
+    (apply-reduction-relation ↦ (term (odd? 42)))
+    (apply-reduction-relation ↦ (term (add1 42)))]
 }
 
 @section{Functions}
