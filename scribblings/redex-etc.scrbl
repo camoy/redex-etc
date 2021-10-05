@@ -16,7 +16,8 @@
 @(define evaluator
   (make-base-eval
     '(require (for-syntax racket/base
-                          racket/match)
+                          racket/match
+                          redex/reduction-semantics)
               redex/reduction-semantics
               redex/pict
               redex-etc)))
@@ -153,10 +154,10 @@ in our examples.
     (define-syntax (convert-type type)
       (let go ([type type])
         (match type
-          ['Boolean 'Boolean]
-          ['Integer 'Integer]
-          ['Number 'Integer]
-          [`(-> ,x ...) `(-> ,@(map go x))])))
+          ['Boolean (term Boolean)]
+          ['Integer (term Integer)]
+          ['Number (term Integer)]
+          [`(-> ,x ...) (term (-> ,@(map go x)))])))
 
     (require-typed-primitives
      Ω δ Δ
