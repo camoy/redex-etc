@@ -11,6 +11,7 @@
  ;; `macros.rkt`
  match-term
  not-match?
+ step
 
  ;; `metas.rkt`
  substitute-env

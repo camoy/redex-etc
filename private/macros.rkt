@@ -4,23 +4,21 @@
 ;; provide
 
 (provide match-term
-         not-match?)
+         not-match?
+         step)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
 (require (for-syntax racket/base
-                     racket/match
-                     racket/sequence
                      racket/require-transform
-                     typed-racket/typecheck/possible-domains
-                     typed-racket/types/generalize
+                     racket/sequence
+                     syntax/modresolve
                      typed-racket/env/env-req
                      typed-racket/env/global-env
                      typed-racket/standard-inits
-                     syntax/strip-context
-                     syntax/parse
-                     syntax/modresolve)
+                     typed-racket/typecheck/possible-domains
+                     typed-racket/types/generalize)
          redex/reduction-semantics
          syntax/parse/define)
 
@@ -32,6 +30,9 @@
 
 (define-syntax-rule (not-match? lang p e)
   (not (redex-match? lang p (term e))))
+
+(define-syntax-rule (step rr e)
+  (apply-reduction-relation rr (term e)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; `require-typed-primitives`
